@@ -11,16 +11,18 @@ from panda3d.core import TransparencyAttrib, TransformState
 from panda3d.core import GeoMipTerrain
 
 
-class Terrain(NodePath):
+class CompoundTerrain(NodePath):
 
     def __init__(self):
         super().__init__(BulletRigidBodyNode('terrain'))
         self.set_collide_mask(BitMask32.bit(1))
+        self.node().set_kinematic(True)
 
-    def add_terrain(self, img, height, pos):
+    def assemble(self, img, height, pos):
         shape = BulletHeightfieldShape(img, height, ZUp)
         shape.set_use_diamond_subdivision(True)
-        new_pos = Point3(pos.x + 128.5, pos.y + 128.5, 0)
+        # new_pos = Point3(pos.x + 128.5, pos.y + 128.5, 0)
+        new_pos = Point3(pos.x + 128, pos.y + 128, 0)
         self.node().add_shape(shape, TransformState.make_pos(new_pos))
         # self.node().add_shape(shape, TransformState.make_pos(pos))
 
@@ -29,12 +31,20 @@ class TerrainCreator:
 
     def __init__(self, world):
         self.world = world
+        # *************************************
+        # self.terrains = NodePath('terrains')
+        # self.terrains.reparent_to(base.render)
+        # *************************************
+
         self.terrains = NodePath('terrains')
-        # self.terrain = Terrain()
-        # self.terrain.set_pos(Point3(0, 0, 0))
-        # self.terrain.reparent_to(self.terrains)
+        self.terrain = CompoundTerrain()
+        self.terrain.set_pos(Point3(0, 0, 0))
+        self.terrain.reparent_to(self.terrains)
         self.terrains.reparent_to(base.render)
-        # self.world.attach(self.terrain.node())
+        self.world.attach(self.terrain.node())
+
+        self.terrain_roots = []
+
 
     def make_terrain(self):
         # files = ['14516_6446.png', '14516_6447.png', '14517_6447.png', '14517_6446.png']
@@ -49,17 +59,17 @@ class TerrainCreator:
         #     self.make_geomip_terrain(f'terrains/{file}')
 
     def make_geomip_terrain(self, img_file, x, y):
-        height = 20
+        height = 50
         # img_file = 'terrains/heightfield7.png'
         # img_file = 'terrains/heightfield6.png'
         height_size = PNMImage(Filename(img_file)).get_x_size()
-
+        print('height_size', height_size)
         terrain = GeoMipTerrain('terrain')
         terrain.set_heightfield(img_file)
 
         #************************
         terrain.set_border_stitching(True)
-        # terrain.clear_color_map()
+        terrain.clear_color_map()
         terrain.set_block_size(8)  # block_size 8 and min 2, # block_size 16 and min 3 is good.
         terrain.set_min_level(2)
        
@@ -69,13 +79,13 @@ class TerrainCreator:
         # terrain.set_focal_point(base.camera)
 
         root = terrain.get_root()
-        # root.reparent_to(self.terrains)
-        root.reparent_to(base.render)
+        root.reparent_to(self.terrains)
+        # root.reparent_to(base.render)
         root.set_scale(1, 1, height)
         # self.root.set_h(90)
         # root.set_two_sided(True) <- opposite side is textured too.
 
-        # pos = Point3(-height_size / 2, -(height_size / 2), -height / 2)
+        # pos = Point3(x * (height_size / 2), y * (height_size / 2), -height / 2)
         pos = Point3(x * (height_size / 2 - 0.5), y * (height_size / 2 - 0.5), -(height / 2))
         root.set_pos(pos)
         # root.set_h(90)
@@ -90,6 +100,7 @@ class TerrainCreator:
         ts = TextureStage('ts1')
         ts.set_sort(1)
         tex_grass = base.loader.load_texture('textures/grass.png')
+
         root.set_texture(ts, tex_grass)
         # self.root.set_tex_scale(ts, 300, 300)
 
@@ -108,26 +119,17 @@ class TerrainCreator:
 
         terrain.generate()
         img = PNMImage(Filename(img_file))
-
-        # self.terrain.add_terrain(img, height, pos)
+        self.terrain.assemble(img, height, pos)
         #********************************************
-        shape = BulletHeightfieldShape(img, height, ZUp)
-        shape.set_use_diamond_subdivision(True)
-
-
-        np = self.terrains.attach_new_node(BulletRigidBodyNode('height_field'))
-        
-        # new_pos = Point3(pos.x + 128.5, pos.y + 128.5, 0)
-        new_pos = Point3(pos.x + 128, pos.y + 128, 0)
-        np.node().add_shape(shape, TransformState.make_pos(new_pos))
-        
-        
-        
-        # np.node().add_shape(shape)
-        # np.set_pos(pos)
-        print('np', np.get_pos())
-        np.set_collide_mask(BitMask32.bit(1))
-        self.world.attach(np.node())
+        # shape = BulletHeightfieldShape(img, height, ZUp)
+        # shape.set_use_diamond_subdivision(True)
+        # np = self.terrains.attach_new_node(BulletRigidBodyNode('height_field'))
+        # # new_pos = Point3(pos.x + 128.5, pos.y + 128.5, 0)
+        # new_pos = Point3(pos.x + 128, pos.y + 128, 0)
+        # np.node().add_shape(shape, TransformState.make_pos(new_pos))
+        # # print('np', np.get_pos())
+        # np.set_collide_mask(BitMask32.bit(1))
+        # self.world.attach(np.node())
         #********************************************
 
         terrain_shader = Shader.load(Shader.SL_GLSL, "shaders/terrain_v.glsl", "shaders/terrain_f.glsl")
@@ -139,7 +141,105 @@ class TerrainCreator:
         root.set_shader_input('tex_ScaleFactor2', 10.0)
         root.set_shader_input('tex_ScaleFactor3', 10.0)
 
-        terrain.update()
+        # terrain.update()
+        self.terrain_roots.append(root)
+
+
+
+
+
+    # def make_geomip_terrain1(self, img_file, x, y):
+    #     height = 20
+    #     # img_file = 'terrains/heightfield7.png'
+    #     # img_file = 'terrains/heightfield6.png'
+    #     height_size = PNMImage(Filename(img_file)).get_x_size()
+
+    #     terrain = GeoMipTerrain('terrain')
+    #     terrain.set_heightfield(img_file)
+
+    #     #************************
+    #     terrain.set_border_stitching(True)
+    #     # terrain.clear_color_map()
+    #     terrain.set_block_size(8)  # block_size 8 and min 2, # block_size 16 and min 3 is good.
+    #     terrain.set_min_level(2)
+       
+    #     # terrain.set_block_size(128)
+    #     # terrain.set_near(0)
+    #     # terrain.set_far(1024)
+    #     # terrain.set_focal_point(base.camera)
+
+    #     root = terrain.get_root()
+    #     # root.reparent_to(self.terrains)
+    #     root.reparent_to(base.render)
+    #     root.set_scale(1, 1, height)
+    #     # self.root.set_h(90)
+    #     # root.set_two_sided(True) <- opposite side is textured too.
+
+    #     # pos = Point3(-height_size / 2, -(height_size / 2), -height / 2)
+    #     pos = Point3(x * (height_size / 2 - 0.5), y * (height_size / 2 - 0.5), -(height / 2))
+    #     root.set_pos(pos)
+    #     # root.set_h(90)
+    #     print('root', root.get_pos())
+
+    #     ts = TextureStage('ts0')
+    #     ts.set_sort(0)
+    #     texture = base.loader.load_texture('textures/small_stones.jpg')
+    #     root.set_texture(ts, texture)
+    #     # self.root.set_tex_scale(ts, 300, 300)
+
+    #     ts = TextureStage('ts1')
+    #     ts.set_sort(1)
+    #     tex_grass = base.loader.load_texture('textures/grass.png')
+    #     root.set_texture(ts, tex_grass)
+    #     # self.root.set_tex_scale(ts, 300, 300)
+
+    #     ts = TextureStage('ts2')
+    #     ts.set_sort(2)
+    #     tex_red = base.loader.load_texture('textures/red_ground.jpg')
+    #     root.set_texture(ts, tex_red)
+    #     # self.root.set_tex_scale(ts, 300, 300)
+
+    #     ts = TextureStage('ts3')
+    #     ts.set_sort(3)
+    #     tex_dark = base.loader.load_texture('textures/dark_green.jpg')
+    #     root.set_texture(ts, tex_dark)
+    #     # self.root.set_texture(self.ts, self.detail_map)
+    #     # self.root.set_tex_scale(self.ts, 300, 300)
+
+    #     terrain.generate()
+    #     img = PNMImage(Filename(img_file))
+
+    #     # self.terrain.add_terrain(img, height, pos)
+    #     #********************************************
+    #     shape = BulletHeightfieldShape(img, height, ZUp)
+    #     shape.set_use_diamond_subdivision(True)
+
+
+    #     np = self.terrains.attach_new_node(BulletRigidBodyNode('height_field'))
+        
+    #     # new_pos = Point3(pos.x + 128.5, pos.y + 128.5, 0)
+    #     new_pos = Point3(pos.x + 128, pos.y + 128, 0)
+    #     np.node().add_shape(shape, TransformState.make_pos(new_pos))
+        
+        
+        
+    #     # np.node().add_shape(shape)
+    #     # np.set_pos(pos)
+    #     print('np', np.get_pos())
+    #     np.set_collide_mask(BitMask32.bit(1))
+    #     self.world.attach(np.node())
+    #     #********************************************
+
+    #     terrain_shader = Shader.load(Shader.SL_GLSL, "shaders/terrain_v.glsl", "shaders/terrain_f.glsl")
+    #     root.set_shader(terrain_shader)
+    #     root.set_shader_input('camera', base.camera)
+
+    #     root.set_shader_input('tex_ScaleFactor0', 10.0)
+    #     root.set_shader_input('tex_ScaleFactor1', 10.0)
+    #     root.set_shader_input('tex_ScaleFactor2', 10.0)
+    #     root.set_shader_input('tex_ScaleFactor3', 10.0)
+
+    #     terrain.update()
 
     def make_terrain2(self):
         self.height = 20

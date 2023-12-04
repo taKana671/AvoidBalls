@@ -64,13 +64,14 @@ class Sample(ShowBase):
         self.camera.look_at(self.floater)
         self.camLens.set_fov(90)
 
-        # self.camera.set_pos(0, 0, 500)
-        # # self.camera.set_hpr(0, -90, 0)
+        # *****when debug***************
+        # self.camera.set_pos(0, 0, 50)
         # self.camera.look_at(self.walker)
+        # *****when debug***************
 
         # self.make_terrain()
-        terrain_creator = TerrainCreator(self.world)
-        terrain_creator.make_terrain()
+        self.terrain_creator = TerrainCreator(self.world)
+        self.terrain_creator.make_terrain()
         # terrain_creator.make_geomip_terrain()
         # self.render.setShaderAuto()
 
@@ -84,8 +85,12 @@ class Sample(ShowBase):
         inputState.watch_with_modifiers('right', 'arrow_right')
 
         self.accept('d', self.toggle_debug)
+        self.accept('p', self.print_position)
         self.accept('escape', sys.exit)
         self.taskMgr.add(self.update, 'update')
+
+    def print_position(self):
+        print(self.walker.get_pos())
 
     def toggle_debug(self):
         if self.debug_np.is_hidden():
@@ -98,6 +103,7 @@ class Sample(ShowBase):
         dt = globalClock.get_dt()
         self.control_walker(dt)
 
+        # self.terrain_creator.terrains.set_z(self.terrain_creator.terrains.get_z() - 10 * dt)
         self.world.do_physics(dt)
         return task.cont
 

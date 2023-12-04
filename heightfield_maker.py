@@ -5,33 +5,24 @@ import cv2
 
 class Heightfield:
 
-    def __init__(self, altitude_file_path):
+    def __init__(self):
+        self.tile_size = 256
         self.dir = 'terrains'
-        self.file = altitude_file_path
+        # self.file = altitude_file_path
 
-    def make_image(self):
-        df = pd.read_csv(self.file, header=None)
-        arr = df.values
+    def mirror_image(self, file):
+        arr = self.get_array(file)
 
-        top_l_256 = np.interp(arr, (arr.min(), arr.max()), (0, 65536))
-        top_r_256 = np.fliplr(top_l_256)
-        bottom_l_256 = np.flipud(top_l_256)
-        bottom_r_256 = np.fliplr(bottom_l_256)
+        top_l = np.interp(arr, (arr.min(), arr.max()), (0, 256 * 256))
+        top_r = np.fliplr(top_l)
+        top = np.concatenate([top_l, top_r], 1)
+        bottom = np.flipud(top)
+        mirror_arr = np.concatenate([top, bottom], 0)
+        mirror_arr = mirror_arr.astype(np.uint16)
 
-        top_h = np.concatenate([top_l_256, top_r_256], 1)
-        bottom_h = np.concatenate([bottom_l_256, bottom_r_256], 1)
-        square_512 = np.concatenate([top_h, bottom_h], 0)
-        square_512 = square_512.astype(np.uint16)
-
-        top_l_257 = square_512[:257, :257]
-        top_r_257 = square_512[:257, 255:]
-        bottom_l_257 = square_512[255:, :257]
-        bottom_r_257 = square_512[255:, 255:]
-
-        cv2.imwrite(f'{self.dir}/top_left.png', top_l_257)
-        cv2.imwrite(f'{self.dir}/top_right.png', top_r_257)
-        cv2.imwrite(f'{self.dir}/bottom_left.png', bottom_l_257)
-        cv2.imwrite(f'{self.dir}/bottom_right.png', bottom_r_257)
+        mirror_arr = self.enlarge(mirror_arr)
+        img = mirror_arr.astype(np.uint16)
+        self.crop(img)
 
     def find_size(self, current, size=1):
         size *= 2
@@ -39,76 +30,66 @@ class Heightfield:
             return size + 1
         return self.find_size(current, size)
 
+    def enlarge(self, arr, edge=-1, mirror=False):
+        bottom = np.flipud(arr[edge:, :]) if mirror else arr[edge:, :]
+        arr = np.concatenate([arr, bottom], 0)
+        right = np.fliplr(arr[:, edge:]) if mirror else arr[:, edge:]
+        arr = np.concatenate([arr, right], 1)
+        return arr
 
-# def make_image(file_path, output_path):
-#     df = pd.read_csv(file_path, header=None)
-#     size = len(df)
-#     arr = df.values
+    def crop(self, img, h=257, w=257):
+        """Crop a image to 257 * 257 area by default from the top left
+           so that one row of pixels in the middle will always overlap.
+           Args:
+            img (numpy.ndarray): heightfield
+        """
+        top_l = img[:h, :w]
+        top_r = img[:h, w - 1:w * 2 - 1]
+        bottom_l = img[h - 1:h * 2 - 1, :w]
+        bottom_r = img[h - 1:h * 2 - 1, w - 1:w * 2 - 1]
 
-#     if (found := find_size(size)) != size:
-#         size = found
-#         arr = cv2.resize(arr, (size, size))
+        cv2.imwrite(f'{self.dir}/top_left.png', top_l)
+        cv2.imwrite(f'{self.dir}/top_right.png', top_r)
+        cv2.imwrite(f'{self.dir}/bottom_left.png', bottom_l)
+        cv2.imwrite(f'{self.dir}/bottom_right.png', bottom_r)
 
-#     arr = np.interp(arr, (arr.min(), arr.max()), (0, size ** 2))
-#     arr = arr.astype(np.uint16)
-#     cv2.imwrite(output_path, arr)
+    def get_array(self, file):
+        df = pd.read_csv(f'terrains/heightfield_texts/{file}', header=None)
+        return df.values
 
+    def concat_images(self, file_list):
+        arr = np.concatenate(
+            [np.concatenate([self.get_array(file) for file in files], 1) for files in file_list], 0
+        )
+        arr = np.interp(arr, (arr.min(), arr.max()), (0, 256 * 256))
+        arr = self.enlarge(arr)
+        img = arr.astype(np.uint16)
 
-# >>> arr1_interp = np.interp(arr1, (arr1.min(), arr1.max()), (0, 256 ** 2))
-# >>> arr1_interp2 = np.flipud(arr1_interp)
-# >>> arr1_interp3 = np.flipud(arr1_interp2)
-# >>> arr1_interp3 = np.fliplr(arr1_interp2)
-# >>> arr1_interp4 = np.fliplr(arr1_interp)
-# >>> h1 = np.concatenate([arr1_interp, arr1_interp4], 1)
-# >>> h2 = np.concatenate([arr1_interp2, arr1_interp3], 1)
-# >>> v_arr = np.concatenate([h1, h2], 0)
-# >>> v_arr = v_arr.astype(np.uint16)
-# >>> v_arr.shape
-# (512, 512)
-# >>> cv2.imwrite('test.png', v_arr)
-# True
-# >>> top_left = v_arr[:257, :257]
-# >>> top_left.shape
-# (257, 257)
-# >>> top_right = v_arr[:257, 255:]
-# >>> top_right.shape
-# (257, 257)
-# >>> bottom_left = v_arr[255:, :257]
-# >>> bottom_left.shape
-# (257, 257)
-# >>> bottom_right = v_arr[255:, 255:]
-# >>> bottom_right.shape
-# (257, 257)
-# >>> cv2.imwrite('top_left', top_left)
-# Traceback (most recent call last):
-#   File "<stdin>", line 1, in <module>
-# cv2.error: OpenCV(4.8.0) D:\a\opencv-python\opencv-python\opencv\modules\imgcodecs\src\loadsave.cpp:696: error: (-2:Unspecified error) could not find a writer for the specified extension in function 'cv::imwrite_'
-
-# >>> cv2.imwrite('top_left.png', top_left)
-# True
-# >>> cv2.imwrite('top_right.png', top_right)
-# True
-# >>> cv2.imwrite('bottom_right.png', bottom_right)
-# True
-# >>> cv2.imwrite('bottom_left.png', bottom_left)
-# True
+        cv2.imwrite('terrains/heightfield.png', img)
+        self.crop(img)
 
 
+# def download_txt(urls):
 
-
-
-def download_txt(urls):
-
-    for url in urls:
-        s = url[:-4]
-        li = s.split('/')
-        save_name = f'{li[-2]}_{li[-1]}.txt'
-        print(save_name)
-        urllib.request.urlretrieve(url, save_name)
+#     for url in urls:
+#         s = url[:-4]
+#         li = s.split('/')
+#         save_name = f'{li[-2]}_{li[-1]}.txt'
+#         print(save_name)
+#         urllib.request.urlretrieve(url, save_name)
 
 
 if __name__ == '__main__':
-    Heightfield('terrains/heightfield_texts/14518_6445.txt').make_image()
+    # Heightfield('terrains/heightfield_texts/14516_6445.txt').make_image()
+    # Heightfield('terrains/heightfield_texts/14516_6445.txt').make_img2()
+
+    li = [
+        ['14517_6447.txt', '14518_6447.txt'],
+        ['14517_6448.txt', '14518_6448.txt'],
+    ]
+
+    # Heightfield().concat_images(li)
+    Heightfield().mirror_image('14516_6448.txt')
 
     # urls = [
     #     'http://cyberjapandata.gsi.go.jp/xyz/dem/14/14515/6445.txt',
