@@ -3,26 +3,15 @@ import numpy as np
 import cv2
 
 
+DIR = 'terrains/heightfield_texts'
+
+
 class Heightfield:
 
     def __init__(self):
         self.tile_size = 256
         self.dir = 'terrains'
         # self.file = altitude_file_path
-
-    def mirror_image(self, file):
-        arr = self.get_array(file)
-
-        top_l = np.interp(arr, (arr.min(), arr.max()), (0, 256 * 256))
-        top_r = np.fliplr(top_l)
-        top = np.concatenate([top_l, top_r], 1)
-        bottom = np.flipud(top)
-        mirror_arr = np.concatenate([top, bottom], 0)
-        mirror_arr = mirror_arr.astype(np.uint16)
-
-        mirror_arr = self.enlarge(mirror_arr)
-        img = mirror_arr.astype(np.uint16)
-        self.crop(img)
 
     def find_size(self, current, size=1):
         size *= 2
@@ -53,14 +42,11 @@ class Heightfield:
         cv2.imwrite(f'{self.dir}/bottom_left.png', bottom_l)
         cv2.imwrite(f'{self.dir}/bottom_right.png', bottom_r)
 
-    def get_array(self, file):
-        df = pd.read_csv(f'terrains/heightfield_texts/{file}', header=None)
+    def get_array(self, path):
+        df = pd.read_csv(path, header=None).replace('e', 0)
         return df.values
 
-    def concat_images(self, file_list):
-        arr = np.concatenate(
-            [np.concatenate([self.get_array(file) for file in files], 1) for files in file_list], 0
-        )
+    def make_heightfield_images(self, arr):
         arr = np.interp(arr, (arr.min(), arr.max()), (0, 256 * 256))
         arr = self.enlarge(arr)
         img = arr.astype(np.uint16)
@@ -68,15 +54,31 @@ class Heightfield:
         cv2.imwrite('terrains/heightfield.png', img)
         self.crop(img)
 
+    def concat_from_files(self, file_list):
+        arr = np.concatenate(
+            [np.concatenate([self.get_array(f'{DIR}/{file}') for file in files], 1) for files in file_list], 0
+        )
+        self.make_heightfield_images(arr)
 
-# def download_txt(urls):
+    def concat_from_url(self, z, x, y):
+        url = 'https://cyberjapandata.gsi.go.jp/xyz/dem/{}/{}/{}.txt'
 
-#     for url in urls:
-#         s = url[:-4]
-#         li = s.split('/')
-#         save_name = f'{li[-2]}_{li[-1]}.txt'
-#         print(save_name)
-#         urllib.request.urlretrieve(url, save_name)
+        li = [
+            [[x, y], [x + 1, y]],
+            [[x, y + 1], [x + 1, y + 1]]
+        ]
+        arr = np.concatenate(
+            [np.concatenate([self.get_array(url.format(z, x, y)) for x, y in sub], 1) for sub in li], 0
+        )
+        self.make_heightfield_images(arr)
+
+    def mirror(self, file):
+        top_l = self.get_array(f'{DIR}/{file}')
+        top_r = np.fliplr(top_l)
+        top = np.concatenate([top_l, top_r], 1)
+        bottom = np.flipud(top)
+        arr = np.concatenate([top, bottom], 0)
+        self.make_heightfield_images(arr)
 
 
 if __name__ == '__main__':
@@ -88,34 +90,7 @@ if __name__ == '__main__':
         ['14517_6448.txt', '14518_6448.txt'],
     ]
 
-    # Heightfield().concat_images(li)
-    Heightfield().mirror_image('14516_6448.txt')
+    # Heightfield().concat_from_files(li)
+    Heightfield().mirror_image('14515_6445.txt')
 
-    # urls = [
-    #     'http://cyberjapandata.gsi.go.jp/xyz/dem/14/14515/6445.txt',
-    #     'http://cyberjapandata.gsi.go.jp/xyz/dem/14/14515/6446.txt',
-    #     'http://cyberjapandata.gsi.go.jp/xyz/dem/14/14515/6447.txt',
-    #     'http://cyberjapandata.gsi.go.jp/xyz/dem/14/14515/6448.txt',
-    #     'http://cyberjapandata.gsi.go.jp/xyz/dem/14/14516/6445.txt',
-    #     'http://cyberjapandata.gsi.go.jp/xyz/dem/14/14516/6446.txt',
-    #     'http://cyberjapandata.gsi.go.jp/xyz/dem/14/14516/6447.txt',
-    #     'http://cyberjapandata.gsi.go.jp/xyz/dem/14/14516/6448.txt',
-    #     'http://cyberjapandata.gsi.go.jp/xyz/dem/14/14517/6445.txt',
-    #     'http://cyberjapandata.gsi.go.jp/xyz/dem/14/14517/6446.txt',
-    #     'http://cyberjapandata.gsi.go.jp/xyz/dem/14/14517/6447.txt',
-    #     'http://cyberjapandata.gsi.go.jp/xyz/dem/14/14517/6448.txt',
-    #     'http://cyberjapandata.gsi.go.jp/xyz/dem/14/14518/6445.txt',
-    #     'http://cyberjapandata.gsi.go.jp/xyz/dem/14/14518/6446.txt',
-    #     'http://cyberjapandata.gsi.go.jp/xyz/dem/14/14518/6447.txt',
-    #     'http://cyberjapandata.gsi.go.jp/xyz/dem/14/14518/6448.txt',
-    # ]
-    # for url in urls:
-    #     s = url[:-4]
-    #     li = s.split('/')
-    #     file = f'terrains/heightfield_texts/{li[-2]}_{li[-1]}.txt'
-    #     save_name = f'terrains/{li[-2]}_{li[-1]}.png'
-    #     make_image(file, save_name)
-
-    # file = 'terrains/14517_6446.txt'
-    # dest = 'terrains/14517_6446.png'
-    # make_image(file, dest)
+    # Heightfield().concat_from_url(14, 14525, 6396)
