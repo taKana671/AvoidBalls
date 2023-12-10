@@ -10,11 +10,25 @@ from panda3d.core import CardMaker, TextureStage, Texture
 from panda3d.core import TransparencyAttrib, TransformState
 from panda3d.core import GeoMipTerrain
 
+from heightfield_tiles import HeightfieldTiles
+
+
+class Tree(NodePath):
+
+    def __init__(self):
+        super().__init__(BulletRigidBodyNode('tree'))
+        model = base.loader.loadModel('models/plant3/plants3')
+        # model = base.loader.loadModel('models/TreeSet3/TreeSet3.blend')
+        model.set_scale(0.2)
+        # model.set_scale(10)
+        model.reparent_to(self)
+        self.reparent_to(base.render)
+
 
 class CompoundTerrain(NodePath):
 
     def __init__(self):
-        super().__init__(BulletRigidBodyNode('terrain'))
+        super().__init__(BulletRigidBodyNode('compoundterrain'))
         self.set_collide_mask(BitMask32.bit(1))
         self.node().set_kinematic(True)
 
@@ -22,7 +36,7 @@ class CompoundTerrain(NodePath):
         shape = BulletHeightfieldShape(img, height, ZUp)
         shape.set_use_diamond_subdivision(True)
         # new_pos = Point3(pos.x + 128.5, pos.y + 128.5, 0)
-        new_pos = Point3(pos.x + 128, pos.y + 128, 0)
+        new_pos = Point3(pos.x + 128.5, pos.y + 128.5, 0)
         self.node().add_shape(shape, TransformState.make_pos(new_pos))
         # self.node().add_shape(shape, TransformState.make_pos(pos))
 
@@ -44,13 +58,20 @@ class TerrainCreator:
         self.world.attach(self.terrain.node())
 
         self.terrain_roots = []
+        self.hf_maker = HeightfieldTiles()
 
-
+    # def set_trees(self):
+    #     for t in self.terrain_roots:
+        
+    
+    
+    
     def make_terrain(self):
         # files = ['14516_6446.png', '14516_6447.png', '14517_6447.png', '14517_6446.png']
         # files = ['terrain1.png', 'terrain2.png', 'terrain3.png', 'terrain4.png']
         files = ['top_left.png', 'bottom_left.png', 'bottom_right.png', 'top_right.png']
-        pos = [(-1, 1), (-1, -1), (1, -1), (1, 1)]
+        # pos = [(-1, 1), (-1, -1), (1, -1), (1, 1)]
+        pos = [(-256, 0), (-256, -256), (0, -256), (0, 0)]
 
         for file, (x, y) in zip(files, pos):
             self.make_geomip_terrain(f'terrains/{file}', x, y)
@@ -58,12 +79,14 @@ class TerrainCreator:
         # for file in ['14516_6446.png']:  #, '14516_6447.png', '14517_6447.png', '14517_6446.png']:
         #     self.make_geomip_terrain(f'terrains/{file}')
 
+        # import pdb; pdb.set_trace()
+
     def make_geomip_terrain(self, img_file, x, y):
         height = 50
         # img_file = 'terrains/heightfield7.png'
         # img_file = 'terrains/heightfield6.png'
         height_size = PNMImage(Filename(img_file)).get_x_size()
-        print('height_size', height_size)
+        # print('height_size', height_size)
         terrain = GeoMipTerrain('terrain')
         terrain.set_heightfield(img_file)
 
@@ -86,10 +109,11 @@ class TerrainCreator:
         # root.set_two_sided(True) <- opposite side is textured too.
 
         # pos = Point3(x * (height_size / 2), y * (height_size / 2), -height / 2)
-        pos = Point3(x * (height_size / 2 - 0.5), y * (height_size / 2 - 0.5), -(height / 2))
+        # pos = Point3(x * (height_size / 2 - 0.5), y * (height_size / 2 - 0.5), -(height / 2))
+        pos = Point3(x - 0.5, y - 0.5, -(height / 2))
         root.set_pos(pos)
         # root.set_h(90)
-        print('root', root.get_pos())
+        # print('root', root.get_pos())
 
         ts = TextureStage('ts0')
         ts.set_sort(0)
@@ -142,8 +166,35 @@ class TerrainCreator:
         root.set_shader_input('tex_ScaleFactor3', 10.0)
 
         # terrain.update()
-        self.terrain_roots.append(root)
+        # self.terrain_roots.append(root)
+        self.terrain_roots.append(terrain)
 
+        # *******************************
+        # tree = Tree()
+        # z = terrain.get_elevation(10, 10) * root.get_sx()
+        # tree.set_pos(10, 10, z)
+        # self.world.attach(tree.node())
+        # *******************************
+
+        if img_file == 'terrains/top_left.png':
+            # import pdb; pdb.set_trace()
+            for i, (px, py) in enumerate(self.hf_maker.convert_pixel_coords(img_file)):
+                if px % 2 == 0 and py % 2 == 0:
+                    # wx = px + x * (height_size / 2)
+                    # wy = py + y * (height_size / 2)
+                    wx = px - 128
+                    wy = py + 128
+
+                    tree = Tree()
+                    z = terrain.get_elevation(wx, wy) * root.get_sx()
+                    print(wx, wy, z)
+                    tree.set_pos(wx, wy, z)
+                    self.world.attach(tree.node())
+
+
+
+        # if img_file == 'terrains/top_left.png':
+        #     for x, y in {(256, 169), (256, 168), (255, 170), (256, 171), (255, 169), (256, 173), (255, 171), (256, 172)}:
 
 
 
