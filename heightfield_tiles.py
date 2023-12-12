@@ -11,6 +11,11 @@ DIR = 'terrains/heightfield_texts'
 IMG_DIR = 'terrains'
 
 
+class TileSizeError(Exception):
+    """Raised when tile size is not (256, 256)
+    """
+
+
 class Images(Enum):
 
     TOP_LEFT = auto()
@@ -36,10 +41,10 @@ class Tile:
         self.origin = center - Vec2(128, 128)
         self.size = size
 
-    def convert_pixel_coords(self, start=138, end=150):
+    def convert_pixel_coords(self, start=140, end=150):
         img = cv2.imread(self.image.file_path)
-        # pixel_coords = set((x, y) for x, y, _ in zip(*np.where(img == 160)))
-        pixel_coords = set((x, y) for x, y, _ in zip(*np.where((img > start) & (img < end))))
+        pixel_coords = set((x, y) for x, y, _ in zip(*np.where(img == 160)))
+        # pixel_coords = set((x, y) for x, y, _ in zip(*np.where((img > start) & (img < end))))
         # print('pixel_coords', pixel_coords)
 
         for px, py in pixel_coords:
@@ -104,6 +109,10 @@ class HeightfieldTiles:
 
     def get_array(self, path):
         df = pd.read_csv(path, header=None).replace('e', 0)
+
+        if df.shape != (256, 256):
+            raise TileSizeError('Tile size is not (256, 256)')
+
         return df.values
 
     def make_heightfield_images(self, arr):
