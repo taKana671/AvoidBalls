@@ -1,4 +1,5 @@
 from enum import Enum, auto
+from itertools import islice
 
 import pandas as pd
 import numpy as np
@@ -16,7 +17,7 @@ class TileSizeError(Exception):
     """
 
 
-class Images(Enum):
+class Files(Enum):
 
     TOP_LEFT = auto()
     TOP_RIGHT = auto()
@@ -24,7 +25,7 @@ class Images(Enum):
     BOTTOM_RIGHT = auto()
 
     @property
-    def file_path(self):
+    def path(self):
         name = self.name.lower()
         return f'{IMG_DIR}/{name}.png'
 
@@ -35,43 +36,61 @@ class Tile:
         center (Point2)
     """
 
-    def __init__(self, image, center, size=256):
-        self.image = image
+    def __init__(self, file, center, size=256):
+        self.file = file
         self.center = center
         self.origin = center - Vec2(128, 128)
         self.size = size
+        self.img = cv2.imread(self.file.path)
+        self.parse_pixels()
 
-    def convert_pixel_coords(self, start=140, end=150):
-        img = cv2.imread(self.image.file_path)
-        pixel_coords = set((x, y) for x, y, _ in zip(*np.where(img == 160)))
-        # pixel_coords = set((x, y) for x, y, _ in zip(*np.where((img > start) & (img < end))))
-        # print('pixel_coords', pixel_coords)
+    def parse_pixels(self):
+        pixels = self.count_pixels()
+        self.min_height = min(pixels.keys())
+        self.max_height = max(pixels.keys())
 
-        for px, py in pixel_coords:
-            print('pixel coords', px, py)
-            x = py - 128
+        n = (self.max_height - self.min_height) // 4
+        area = list(islice(pixels.items(), n, n + 2))
+        self.tree_area = min(area, key=lambda x: x[1])[0]
+        # print(self.file, self.tree_area)
 
-            if 0 <= px <= 128:
-                y = 128 - px
-            else:
-                y = -(px - 128)
+    def count_pixels(self):
+        pixels = {}
 
-            yield (x, y)
+        for i in range(256):
+            if count := np.count_nonzero(self.img == i):
+                pixels[i] = count
+
+        return pixels
+
+    def change_pixel_to_cartesian(self, area):
+        """Change pixel coordinates to cartesian.
+           Arges:
+                area (int): color
+        """
+        pixel_coords = set((x, y) for x, y, _ in zip(*np.where(self.img == area)))
+
+        for y, x in pixel_coords:
+            cx = x - 128
+            cy = -(y - 128)
+            cx += self.center.x
+            cy += self.center.y
+
+            yield (cx, cy)
 
 
 class HeightfieldTiles:
 
     def __init__(self):
         self._tiles = [
-            Tile(Images.TOP_LEFT, Vec2(-128, 128)),
-            Tile(Images.TOP_RIGHT, Vec2(128, 128)),
-            Tile(Images.BOTTOM_LEFT, Vec2(-128, -128)),
-            Tile(Images.BOTTOM_RIGHT, Vec2(128, -128))
+            Tile(Files.TOP_LEFT, Vec2(-128, 128)),
+            Tile(Files.TOP_RIGHT, Vec2(128, 128)),
+            Tile(Files.BOTTOM_LEFT, Vec2(-128, -128)),
+            Tile(Files.BOTTOM_RIGHT, Vec2(128, -128))
         ]
 
         self.tile_size = 256
         self.dir = 'terrains'
-        # self.file = altitude_file_path
 
     def __iter__(self):
         yield from self._tiles
@@ -102,10 +121,10 @@ class HeightfieldTiles:
         bottom_l = img[h - 1:h * 2 - 1, :w]
         bottom_r = img[h - 1:h * 2 - 1, w - 1:w * 2 - 1]
 
-        cv2.imwrite(Images.TOP_LEFT.file_path, top_l)
-        cv2.imwrite(Images.TOP_RIGHT.file_path, top_r)
-        cv2.imwrite(Images.BOTTOM_LEFT.file_path, bottom_l)
-        cv2.imwrite(Images.BOTTOM_RIGHT.file_path, bottom_r)
+        cv2.imwrite(Files.TOP_LEFT.file_path, top_l)
+        cv2.imwrite(Files.TOP_RIGHT.file_path, top_r)
+        cv2.imwrite(Files.BOTTOM_LEFT.file_path, bottom_l)
+        cv2.imwrite(Files.BOTTOM_RIGHT.file_path, bottom_r)
 
     def get_array(self, path):
         df = pd.read_csv(path, header=None).replace('e', 0)

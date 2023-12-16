@@ -88,6 +88,7 @@ class Sample(ShowBase):
         self.accept('p', self.print_position)
         self.accept('escape', sys.exit)
         self.taskMgr.add(self.update, 'update')
+        self.taskMgr.add(self.terrain_creator.plant_trees, 'plant_tree')
 
     def print_position(self):
         print(self.walker.get_pos())
@@ -102,6 +103,9 @@ class Sample(ShowBase):
         # self.terrain.update()
         dt = globalClock.get_dt()
         self.control_walker(dt)
+
+        # for t in self.terrain_creator.terrain_roots:
+        #     t.update()
 
         # self.terrain_creator.terrains.set_z(self.terrain_creator.terrains.get_z() - 10 * dt)
         self.world.do_physics(dt)
