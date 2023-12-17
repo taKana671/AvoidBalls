@@ -88,7 +88,7 @@ class Sample(ShowBase):
         self.accept('p', self.print_position)
         self.accept('escape', sys.exit)
         self.taskMgr.add(self.update, 'update')
-        self.taskMgr.add(self.terrain_creator.plant_trees, 'plant_tree')
+        self.taskMgr.add(self.terrain_creator.setup_nature, 'setup_nature')
 
     def print_position(self):
         print(self.walker.get_pos())

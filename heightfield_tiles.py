@@ -30,6 +30,12 @@ class Files(Enum):
         return f'{IMG_DIR}/{name}.png'
 
 
+class Areas(Enum):
+
+    TREE = auto()
+    ROCK = auto()
+
+
 class Tile:
     """
     Args
@@ -41,17 +47,31 @@ class Tile:
         self.center = center
         self.origin = center - Vec2(128, 128)
         self.size = size
+
         self.img = cv2.imread(self.file.path)
+        self.nature_area = {}
         self.parse_pixels()
 
     def parse_pixels(self):
+
+        # ピクセル数でパースしてみる。
+        # [(k, v) for k, v in dic.items() if 800 <= v <= 900]など。
+        # change_pixel_to_cartesianを、colorでループするように変える
+
         pixels = self.count_pixels()
+
         self.min_height = min(pixels.keys())
         self.max_height = max(pixels.keys())
 
-        n = (self.max_height - self.min_height) // 4
-        area = list(islice(pixels.items(), n, n + 2))
-        self.tree_area = min(area, key=lambda x: x[1])[0]
+        n = int(len(pixels) / 5 * 2)
+        area = list(islice(pixels.items(), n - 1, n + 2))
+        tree_area = min(area, key=lambda x: x[1])[0]
+        self.nature_area[Areas.TREE] = tree_area
+
+        n = int(len(pixels) / 5 * 4)
+        area = list(islice(pixels.items(), n - 1, n + 2))
+        rock_area = min(area, key=lambda x: x[1])[0]
+        self.nature_area[Areas.ROCK] = rock_area
         # print(self.file, self.tree_area)
 
     def count_pixels(self):
@@ -66,9 +86,10 @@ class Tile:
     def change_pixel_to_cartesian(self, area):
         """Change pixel coordinates to cartesian.
            Arges:
-                area (int): color
+                area (Areas): color
         """
-        pixel_coords = set((x, y) for x, y, _ in zip(*np.where(self.img == area)))
+        color = self.nature_area[area]
+        pixel_coords = set((x, y) for x, y, _ in zip(*np.where(self.img == color)))
 
         for y, x in pixel_coords:
             cx = x - 128
@@ -76,7 +97,7 @@ class Tile:
             cx += self.center.x
             cy += self.center.y
 
-            yield (cx, cy)
+            yield (area, cx, cy)
 
 
 class HeightfieldTiles:
@@ -94,8 +115,6 @@ class HeightfieldTiles:
 
     def __iter__(self):
         yield from self._tiles
-        # for tile in self._tiles:
-        #     yield tile
 
     def find_size(self, current, size=1):
         size *= 2
@@ -167,24 +186,6 @@ class HeightfieldTiles:
         bottom = np.flipud(top)
         arr = np.concatenate([top, bottom], 0)
         self.make_heightfield_images(arr)
-
-    # def convert_pixel_coords(self, file_path, start=138, end=150):
-    #     img = cv2.imread(file_path)
-    #     # pixel_coords = set((x, y) for x, y, _ in zip(*np.where(img == 160)))
-    #     pixel_coords = set((x, y) for x, y, _ in zip(*np.where((img > start) & (img < end))))
-    #     # print('pixel_coords', pixel_coords)
-
-    #     for px, py in pixel_coords:
-    #         print('pixel coords', px, py)
-    #         x = py - 128
-
-    #         if 0 <= px <= 128:
-    #             y = 128 - px
-    #         else:
-    #             y = -(px - 128)
-
-    #         yield (x, y)
-
 
 
 if __name__ == '__main__':

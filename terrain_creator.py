@@ -18,31 +18,32 @@ from panda3d.core import CardMaker, TextureStage, Texture
 from panda3d.core import TransparencyAttrib, TransformState
 from panda3d.core import GeoMipTerrain
 
-from heightfield_tiles import HeightfieldTiles
+from heightfield_tiles import HeightfieldTiles, Areas
 from utils import create_line_node
+from natures import Tree, Rock
 
 
-class Tree(NodePath):
+# class Tree(NodePath):
 
-    def __init__(self, pos, angle, parent):
-        super().__init__(BulletRigidBodyNode('tree'))
-        model = base.loader.loadModel('models/plant6/plants6')
-        # model = base.loader.load_model('models/Tree/tree.')
-        model.set_scale(0.5)
-        self.set_h(angle)
-        # model.set_scale(10)
-        end, tip = model.get_tight_bounds()
-        height = (tip - end).z
-        shape = BulletCylinderShape(1, height, ZUp)
-        self.node().add_shape(shape)
-        # self.node().add_shape(shape, TransformState.make_pos(Point3(0, 0, 10)))
-        model.set_transform(TransformState.make_pos(Vec3(0, 0, -10)))
-        self.set_collide_mask(BitMask32(1) | BitMask32.bit(2))
-        model.reparent_to(self)
+#     def __init__(self, pos, angle, parent):
+#         super().__init__(BulletRigidBodyNode('tree'))
+#         model = base.loader.loadModel('models/plant6/plants6')
+#         # model = base.loader.load_model('models/Tree/tree.')
+#         model.set_scale(0.5)
+#         self.set_h(angle)
+#         # model.set_scale(10)
+#         end, tip = model.get_tight_bounds()
+#         height = (tip - end).z
+#         shape = BulletCylinderShape(1, height, ZUp)
+#         self.node().add_shape(shape)
+#         # self.node().add_shape(shape, TransformState.make_pos(Point3(0, 0, 10)))
+#         model.set_transform(TransformState.make_pos(Vec3(0, 0, -10)))
+#         self.set_collide_mask(BitMask32(1) | BitMask32.bit(2))
+#         model.reparent_to(self)
 
-        self.set_pos(pos)
-        # self.reparent_to(base.render)
-        self.reparent_to(parent)
+#         self.set_pos(pos)
+#         # self.reparent_to(base.render)
+#         self.reparent_to(parent)
 
 
 class TerrainBody(NodePath):
@@ -71,8 +72,8 @@ class TerrainCreator:
         self.scene = NodePath('scene')
         self.scene.reparent_to(base.render)
 
-        self.test_shape = BulletSphereShape(3)
-        self.angles = [0, 60, 90, 120, 180, 270]
+        self.test_shape = BulletSphereShape(4)
+        self.angles = [n for n in range(0, 360, 10)]
 
         self.terrains = NodePath('terrains')
         self.terrain_body = TerrainBody(Point3(0, 0, 0))
@@ -87,7 +88,7 @@ class TerrainCreator:
         self.heightfield_tiles = HeightfieldTiles()
 
         self.trees = itertools.chain(
-            *[tile.change_pixel_to_cartesian(tile.tree_area) for tile in self.heightfield_tiles._tiles]
+            *[tile.change_pixel_to_cartesian(nature_area) for tile in self.heightfield_tiles for nature_area in Areas]
         )
 
     def load_textures(self):
@@ -106,7 +107,7 @@ class TerrainCreator:
 
     def make_terrain(self):
         textures = [(ts, tex) for ts, tex in self.load_textures()]
-        height = 50
+        height = 30
 
         for i, tile in enumerate(self.heightfield_tiles):
             terrain = GeoMipTerrain(f'terrain{i}')
@@ -153,20 +154,36 @@ class TerrainCreator:
             result = self.world.ray_test_closest(pt_from, pt_to, mask=BitMask32.bit(1))
             if result.has_hit():
                 return result.get_hit_pos()
-
         return None
 
-    def plant_trees(self, task):
+    def setup_nature(self, task):
         try:
-            x, y = next(self.trees)
+            area, x, y = next(self.trees)
 
             if pos := self.find_position(x, y):
                 # self.debug_line_center = create_line_node(Point3(wx, wy, 30), Point3(wx, wy, -30), LColor(1, 0, 0, 1))
                 # self.debug_line_center.reparent_to(base.render)
-                angle = random.choice(self.angles)
-                tree = Tree(pos, angle, self.natures)
-                self.world.attach(tree.node())
+
+                match area:
+                    case Areas.TREE:
+                        obj = self.tree(pos)
+
+                    case Areas.ROCK:
+                        obj = self.rock(pos)
+
+                self.world.attach(obj.node())
         except StopIteration:
             return task.done
         else:
             return task.cont
+
+    def tree(self, pos):
+        angle = random.choice(self.angles)
+        obj = Tree(pos, angle, self.natures)
+        return obj
+
+    def rock(self, pos):
+        hpr = random.sample(self.angles, 3)
+        pos -= Vec3(0, 0, 3)
+        obj = Rock(pos, Vec3(*hpr), self.natures)
+        return obj
