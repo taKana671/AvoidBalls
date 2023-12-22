@@ -1,7 +1,5 @@
 #version 300 es
 precision highp float;
-// uniform vec2 u_resolution;
-// uniform float osg_FrameTime;
 
 uniform float tex_ScaleFactor0;
 uniform float tex_ScaleFactor1;
@@ -12,7 +10,6 @@ uniform sampler2D p3d_Texture0;
 uniform sampler2D p3d_Texture1;
 uniform sampler2D p3d_Texture2;
 uniform sampler2D p3d_Texture3;
-// uniform sampler2D Heightmap;
 
 in vec2 texcoord0;
 in vec2 texcoord1;
@@ -27,7 +24,6 @@ float computeWeight(float min_z, float max_z, vec4 vertex){
     return max(0.0, (region - abs(vertex.z - max_z)) / region);
 }
 
-
 void main() {
     vec4 tex0 = texture(p3d_Texture0, texcoord0.st * tex_ScaleFactor0).rgba;
     vec4 tex1 = texture(p3d_Texture1, texcoord1.st * tex_ScaleFactor1).rgba;
@@ -41,8 +37,6 @@ void main() {
     float w1 = 0.0;
     float w2 = 0.0;
     float w3 = 0.0;
-
-    // vec4 color = vec4(0.0, 0.0, 0.0, 0.0);
 
     // stone
     min_z = -100.0/scale;
@@ -69,6 +63,7 @@ void main() {
     // min_z = 201.0/scale;
     // max_z = 300.0/scale;
     w3 = computeWeight(min_z, max_z, vertex);
+
 
     fragColor = tex0 * w0 + tex1 * w1 + tex2 * w2 + tex3 * w3;
 }

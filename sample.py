@@ -65,7 +65,7 @@ class Sample(ShowBase):
         self.camLens.set_fov(90)
 
         # *****when debug***************
-        # self.camera.set_pos(0, 0, 100)
+        # self.camera.set_pos(0, 0, 30)
         # self.camera.look_at(self.walker)
         # *****when debug***************
 

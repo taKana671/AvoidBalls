@@ -1,3 +1,8 @@
+import os
+
+import cv2
+import numpy as np
+from PIL import Image
 from panda3d.core import LineSegs, NodePath
 
 
@@ -17,3 +22,20 @@ def create_line_node(from_pos, to_pos, color, thickness=2.0):
     node = lines.create()
     return NodePath(node)
 
+
+def make_noise(x=256, y=256):
+    # byte_arr = bytearray(os.urandom(x * y))
+    # arr = np.array(byte_arr)
+    # arr = arr.astype(np.uint16)
+    # img = np.array(byte_arr).reshape(x, y)
+    # cv2.imwrite('noise.png', img)
+
+    byte_arr = bytearray(os.urandom(x * y))
+    arr = np.array(byte_arr)
+    arr = arr.reshape(x, y)
+    img = Image.fromarray(np.uint8(arr))
+    img.save('noise.png')
+
+
+if __name__ == '__main__':
+    make_noise()

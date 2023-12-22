@@ -1,7 +1,5 @@
 #version 300 es
 precision highp float;
-// uniform vec2 u_resolution;
-// uniform float osg_FrameTime;
 uniform mat4 p3d_ModelViewProjectionMatrix;
 
 in vec4 p3d_Vertex;

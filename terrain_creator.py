@@ -1,9 +1,6 @@
 import itertools
 import random
 
-import cv2
-import numpy as np
-
 from panda3d.bullet import BulletSphereShape, BulletRigidBodyNode
 from panda3d.bullet import BulletCylinderShape, BulletSphereShape
 
@@ -23,27 +20,18 @@ from utils import create_line_node
 from natures import Tree, Rock
 
 
-# class Tree(NodePath):
+class WaterSurface(NodePath):
 
-#     def __init__(self, pos, angle, parent):
-#         super().__init__(BulletRigidBodyNode('tree'))
-#         model = base.loader.loadModel('models/plant6/plants6')
-#         # model = base.loader.load_model('models/Tree/tree.')
-#         model.set_scale(0.5)
-#         self.set_h(angle)
-#         # model.set_scale(10)
-#         end, tip = model.get_tight_bounds()
-#         height = (tip - end).z
-#         shape = BulletCylinderShape(1, height, ZUp)
-#         self.node().add_shape(shape)
-#         # self.node().add_shape(shape, TransformState.make_pos(Point3(0, 0, 10)))
-#         model.set_transform(TransformState.make_pos(Vec3(0, 0, -10)))
-#         self.set_collide_mask(BitMask32(1) | BitMask32.bit(2))
-#         model.reparent_to(self)
-
-#         self.set_pos(pos)
-#         # self.reparent_to(base.render)
-#         self.reparent_to(parent)
+    def __init__(self, size, pos):
+        super().__init__(NodePath('water'))
+        card = CardMaker('surface')
+        card.set_frame(0, size, 0, size)
+        self.surface = self.attach_new_node(card.generate())
+        self.surface.look_at(Vec3.down())
+        self.surface.set_transparency(TransparencyAttrib.M_alpha)
+        self.surface.set_texture(base.loader.load_texture('textures/water.png'))
+        # self.surface.set_tex_scale(TextureStage.get_default(), 4)
+        self.set_pos(pos)
 
 
 class TerrainBody(NodePath):
@@ -134,14 +122,31 @@ class TerrainCreator:
             pos = Point3(root.get_x() + 128.5, root.get_y() + 128.5, 0)
             self.terrain_body.assemble(tile.file.path, height, pos)
 
-            terrain_shader = Shader.load(Shader.SL_GLSL, "shaders/terrain_v.glsl", "shaders/terrain_f.glsl")
+            terrain_shader = Shader.load(Shader.SL_GLSL, 'shaders/terrain_v.glsl', 'shaders/terrain_f.glsl')
             root.set_shader(terrain_shader)
-            root.set_shader_input('camera', base.camera)
+            # root.set_shader_input('camera', base.camera)
 
             for i in range(4):
                 root.set_shader_input(f'tex_ScaleFactor{i}', 10.0)
 
+            if tile.file.path == 'terrains/top_left.png':
+                pos = Point3(tile.origin.x, tile.origin.y, -13)
+                water_surface = WaterSurface(256, pos)
+                water_surface.reparent_to(self.terrains)
+
+                water_shader = Shader.load(Shader.SL_GLSL, 'shaders/water_v.glsl', 'shaders/water_f.glsl')
+                water_surface.set_shader(water_shader)
+                water_surface.set_shader_input('noise', base.loader.loadTexture('textures/noise2.png'))
+                # water_surface.set_shader_input('surface', base.loader.load_texture('textures/water.png'))
+                props = base.win.get_properties()
+                water_surface.set_shader_input('u_resolution', props.get_size())
+                # root.set_shader_input('Heightmap', base.loader.loadTexture(tile.file.path))
+                # root.set_shader_input('river', base.loader.loadTexture('textures/riverbed.jpg'))
+            
+
+
             self.terrain_roots.append(terrain)
+        #   import pdb; pdb.set_trace()
 
     def find_position(self, x, y):
         pt_from = Point3(x, y, 30)
