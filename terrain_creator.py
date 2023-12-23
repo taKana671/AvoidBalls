@@ -29,9 +29,19 @@ class WaterSurface(NodePath):
         self.surface = self.attach_new_node(card.generate())
         self.surface.look_at(Vec3.down())
         self.surface.set_transparency(TransparencyAttrib.M_alpha)
-        self.surface.set_texture(base.loader.load_texture('textures/water.png'))
-        # self.surface.set_tex_scale(TextureStage.get_default(), 4)
         self.set_pos(pos)
+        self.set_shader()
+
+    def set_shader(self):
+        tex = base.loader.load_texture('textures/water.png')
+        tex.setWrapU(Texture.WMClamp)
+        tex.setWrapV(Texture.WMClamp)
+        self.surface.set_texture(tex)
+        shader = Shader.load(Shader.SL_GLSL, 'shaders/water_v.glsl', 'shaders/water_f.glsl')
+        self.surface.set_shader(shader) 
+        self.surface.set_shader_input('noise', base.loader.loadTexture('textures/noise2.png'))
+        props = base.win.get_properties()
+        self.surface.set_shader_input('u_resolution', props.get_size())
 
 
 class TerrainBody(NodePath):
@@ -129,21 +139,11 @@ class TerrainCreator:
             for i in range(4):
                 root.set_shader_input(f'tex_ScaleFactor{i}', 10.0)
 
-            if tile.file.path == 'terrains/top_left.png':
-                pos = Point3(tile.origin.x, tile.origin.y, -13)
+            if tile.has_water:
+                z = -(height / 2) + 2
+                pos = Point3(tile.origin, z)
                 water_surface = WaterSurface(256, pos)
                 water_surface.reparent_to(self.terrains)
-
-                water_shader = Shader.load(Shader.SL_GLSL, 'shaders/water_v.glsl', 'shaders/water_f.glsl')
-                water_surface.set_shader(water_shader)
-                water_surface.set_shader_input('noise', base.loader.loadTexture('textures/noise2.png'))
-                # water_surface.set_shader_input('surface', base.loader.load_texture('textures/water.png'))
-                props = base.win.get_properties()
-                water_surface.set_shader_input('u_resolution', props.get_size())
-                # root.set_shader_input('Heightmap', base.loader.loadTexture(tile.file.path))
-                # root.set_shader_input('river', base.loader.loadTexture('textures/riverbed.jpg'))
-            
-
 
             self.terrain_roots.append(terrain)
         #   import pdb; pdb.set_trace()

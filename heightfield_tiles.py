@@ -63,6 +63,10 @@ class Tile:
         self.min_height = min(pixels.keys())
         self.max_height = max(pixels.keys())
 
+        self.has_water = False
+        if sum(v for k, v in pixels.items() if 0 < k < 10) >= 1000:
+            self.has_water = True
+
         n = int(len(pixels) / 5 * 2)
         area = list(islice(pixels.items(), n - 1, n + 2))
         tree_area = min(area, key=lambda x: x[1])[0]
