@@ -30,12 +30,6 @@ class Files(Enum):
         return f'{IMG_DIR}/{name}.png'
 
 
-class Areas(Enum):
-
-    TREE = auto()
-    ROCK = auto()
-
-
 class Tile:
     """
     Args
@@ -48,60 +42,33 @@ class Tile:
         self.origin = center - Vec2(128, 128)
         self.size = size
 
-        self.img = cv2.imread(self.file.path)
-        self.nature_area = {}
-        self.parse_pixels()
+    def __iter__(self):
+        img = cv2.imread(self.file.path)
+        row, col, _ = img.shape
 
-    def parse_pixels(self):
+        for r in range(row):
+            for c in range(col):
+                color = img[r, c, 0]
+                x, y = self.change_pixel_to_cartesian(r, c)
+                yield x, y, color
 
-        # ピクセル数でパースしてみる。
-        # [(k, v) for k, v in dic.items() if 800 <= v <= 900]など。
-        # change_pixel_to_cartesianを、colorでループするように変える
+    def count_pixels(self, start, end):
+        img = cv2.imread(self.file.path)
 
-        pixels = self.count_pixels()
+        if start < 0:
+            start = 0
+        if end > 255:
+            end = 255
 
-        self.min_height = min(pixels.keys())
-        self.max_height = max(pixels.keys())
+        count = sum(np.count_nonzero(img == i) for i in range(start, end + 1))
+        return count
 
-        self.has_water = False
-        if sum(v for k, v in pixels.items() if 0 < k < 10) >= 1000:
-            self.has_water = True
-
-        n = int(len(pixels) / 5 * 2)
-        area = list(islice(pixels.items(), n - 1, n + 2))
-        tree_area = min(area, key=lambda x: x[1])[0]
-        self.nature_area[Areas.TREE] = tree_area
-
-        n = int(len(pixels) / 5 * 4)
-        area = list(islice(pixels.items(), n - 1, n + 2))
-        rock_area = min(area, key=lambda x: x[1])[0]
-        self.nature_area[Areas.ROCK] = rock_area
-        # print(self.file, self.tree_area)
-
-    def count_pixels(self):
-        pixels = {}
-
-        for i in range(256):
-            if count := np.count_nonzero(self.img == i):
-                pixels[i] = count
-
-        return pixels
-
-    def change_pixel_to_cartesian(self, area):
-        """Change pixel coordinates to cartesian.
-           Arges:
-                area (Areas): color
-        """
-        color = self.nature_area[area]
-        pixel_coords = set((x, y) for x, y, _ in zip(*np.where(self.img == color)))
-
-        for y, x in pixel_coords:
-            cx = x - 128
-            cy = -(y - 128)
-            cx += self.center.x
-            cy += self.center.y
-
-            yield (area, cx, cy)
+    def change_pixel_to_cartesian(self, y, x):
+        cx = x - 128
+        cy = -(y - 128)
+        cx += self.center.x
+        cy += self.center.y
+        return cx, cy
 
 
 class HeightfieldTiles:

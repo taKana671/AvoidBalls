@@ -1,9 +1,10 @@
 import itertools
 import random
+from enum import Enum, auto
 
+import cv2
 from panda3d.bullet import BulletSphereShape, BulletRigidBodyNode
 from panda3d.bullet import BulletCylinderShape, BulletSphereShape
-
 from panda3d.bullet import BulletHeightfieldShape, ZUp
 from panda3d.core import NodePath, PandaNode
 from panda3d.core import Vec3, Point3, BitMask32, LColor, Vec2
@@ -15,12 +16,20 @@ from panda3d.core import CardMaker, TextureStage, Texture
 from panda3d.core import TransparencyAttrib, TransformState
 from panda3d.core import GeoMipTerrain
 
-from heightfield_tiles import HeightfieldTiles, Areas
+from heightfield_tiles import HeightfieldTiles
 from utils import create_line_node
-from natures import Tree, Rock
+from natures import Tree, Rock, Flower, Grass
 
 
-class WaterSurface(NodePath):
+class Areas(Enum):
+
+    TREE = auto()
+    ROCK = auto()
+    FLOWER = auto()
+    GRASS = auto()
+
+
+class WaterSurface(NodePath):   
 
     def __init__(self, size, pos):
         super().__init__(NodePath('water'))
@@ -84,10 +93,12 @@ class TerrainCreator:
 
         self.terrain_roots = []
         self.heightfield_tiles = HeightfieldTiles()
+        self.tiles_gen = itertools.chain(
+            *[tile for tile in self.heightfield_tiles])
 
-        self.trees = itertools.chain(
-            *[tile.change_pixel_to_cartesian(nature_area) for tile in self.heightfield_tiles for nature_area in Areas]
-        )
+        # self.trees = itertools.chain(
+        #     *[tile.change_pixel_to_cartesian(nature_area) for tile in self.heightfield_tiles for nature_area in Areas]
+        # )
 
     def load_textures(self):
         files = [
@@ -139,14 +150,13 @@ class TerrainCreator:
             for i in range(4):
                 root.set_shader_input(f'tex_ScaleFactor{i}', 10.0)
 
-            if tile.has_water:
+            if tile.count_pixels(0, 10) >= 1000:
                 z = -(height / 2) + 2
                 pos = Point3(tile.origin, z)
                 water_surface = WaterSurface(256, pos)
                 water_surface.reparent_to(self.terrains)
 
             self.terrain_roots.append(terrain)
-        #   import pdb; pdb.set_trace()
 
     def find_position(self, x, y):
         pt_from = Point3(x, y, 30)
@@ -161,34 +171,56 @@ class TerrainCreator:
                 return result.get_hit_pos()
         return None
 
+    def select_nature_area(self, color):
+        match color:
+            case 50:
+                return Areas.ROCK
+            case 100:
+                return Areas.FLOWER
+            case 150:
+                return Areas.TREE
+            case 200:
+                return Areas.GRASS
+            case 250:
+                return None
+            case _:
+                return None
+
     def setup_nature(self, task):
-        try:
-            area, x, y = next(self.trees)
+        while True:
+            try:
+                x, y, color = next(self.tiles_gen)
+            except StopIteration:
+                print('nature, end')
+                return task.done
 
-            if pos := self.find_position(x, y):
-                # self.debug_line_center = create_line_node(Point3(wx, wy, 30), Point3(wx, wy, -30), LColor(1, 0, 0, 1))
-                # self.debug_line_center.reparent_to(base.render)
+            if area := self.select_nature_area(color):
+                x += random.uniform(-5, 5)
+                y += random.uniform(-5, 5)
 
-                match area:
-                    case Areas.TREE:
-                        obj = self.tree(pos)
+                if pos := self.find_position(x, y):
+                    # self.debug_line_center = create_line_node(Point3(wx, wy, 30), Point3(wx, wy, -30), LColor(1, 0, 0, 1))
+                    # self.debug_line_center.reparent_to(base.render)
 
-                    case Areas.ROCK:
-                        obj = self.rock(pos)
+                    match area:
+                        case Areas.ROCK:
+                            self.rock(pos)
+                        case Areas.TREE:
+                            self.tree(pos)
+                        case Areas.FLOWER:
+                            Flower(pos, self.natures)
+                        case Areas.GRASS:
+                            Grass(pos, self.natures)
 
-                self.world.attach(obj.node())
-        except StopIteration:
-            return task.done
-        else:
-            return task.cont
+                    return task.cont
 
     def tree(self, pos):
         angle = random.choice(self.angles)
         obj = Tree(pos, angle, self.natures)
-        return obj
+        self.world.attach(obj.node())
 
     def rock(self, pos):
         hpr = random.sample(self.angles, 3)
         pos -= Vec3(0, 0, 3)
         obj = Rock(pos, Vec3(*hpr), self.natures)
-        return obj
+        self.world.attach(obj.node())

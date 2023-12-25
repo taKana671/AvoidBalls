@@ -1,4 +1,4 @@
-from panda3d.core import NodePath
+from panda3d.core import NodePath, PandaNode
 from panda3d.core import Vec3, BitMask32, TransformState
 from panda3d.bullet import BulletRigidBodyNode
 from panda3d.bullet import BulletCylinderShape, ZUp
@@ -47,4 +47,26 @@ class Rock(NodePath):
         self.set_hpr(hpr)
         self.set_pos(pos)
         self.set_scale(Vec3(5, 3, 5))
+        self.reparent_to(parent)
+
+
+class Flower(NodePath):
+
+    def __init__(self, pos, parent):
+        super().__init__(PandaNode('flower'))
+        model = base.loader.loadModel('models/shrubbery2/shrubbery2')
+        model.set_scale(0.004)
+        model.reparent_to(self)
+        self.set_pos(pos)
+        self.reparent_to(parent)
+
+
+class Grass(NodePath):
+
+    def __init__(self, pos, parent):
+        super().__init__(PandaNode(f'grass{pos.x}'))
+        model = base.loader.loadModel('models/shrubbery/shrubbery')
+        model.set_scale(0.05)
+        model.reparent_to(self)
+        self.set_pos(pos)
         self.reparent_to(parent)
