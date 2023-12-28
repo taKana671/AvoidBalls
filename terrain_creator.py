@@ -18,18 +18,18 @@ from panda3d.core import GeoMipTerrain
 
 from heightfield_tiles import HeightfieldTiles
 from utils import create_line_node
-from natures import Tree, Rock, Flower, Grass
+from natures import Rock, Flower, Grass, LeaflessTree, FirTree, PineTree
 
 
 class Areas(Enum):
 
-    TREE = auto()
+    LEAFLESS_TREE = auto()
     ROCK = auto()
     FLOWER = auto()
     GRASS = auto()
 
 
-class WaterSurface(NodePath):   
+class WaterSurface(NodePath):
 
     def __init__(self, size, pos):
         super().__init__(NodePath('water'))
@@ -95,10 +95,6 @@ class TerrainCreator:
         self.heightfield_tiles = HeightfieldTiles()
         self.tiles_gen = itertools.chain(
             *[tile for tile in self.heightfield_tiles])
-
-        # self.trees = itertools.chain(
-        #     *[tile.change_pixel_to_cartesian(nature_area) for tile in self.heightfield_tiles for nature_area in Areas]
-        # )
 
     def load_textures(self):
         files = [
@@ -178,7 +174,7 @@ class TerrainCreator:
             case 100:
                 return Areas.FLOWER
             case 150:
-                return Areas.TREE
+                return Areas.LEAFLESS_TREE
             case 200:
                 return Areas.GRASS
             case 250:
@@ -205,22 +201,37 @@ class TerrainCreator:
                     match area:
                         case Areas.ROCK:
                             self.rock(pos)
-                        case Areas.TREE:
-                            self.tree(pos)
+                        case Areas.LEAFLESS_TREE:
+                            self.tree(PineTree, pos)
                         case Areas.FLOWER:
-                            Flower(pos, self.natures)
+                            self.flower(pos)
                         case Areas.GRASS:
-                            Grass(pos, self.natures)
+                            self.grass(pos)
+                            # Grass(pos, self.natures)
 
                     return task.cont
 
-    def tree(self, pos):
-        angle = random.choice(self.angles)
-        obj = Tree(pos, angle, self.natures)
-        self.world.attach(obj.node())
+    def tree(self, model, pos):
+        h = random.choice(self.angles)
+        # tree = LeaflessTree(pos, Vec3(h, 0, 0))
+        tree = model(pos, Vec3(h, 0, 0))
+        tree.reparent_to(self.natures)
+        self.world.attach(tree.node())
 
     def rock(self, pos):
-        hpr = random.sample(self.angles, 3)
+        hpr = Vec3(*random.sample(self.angles, 3))
         pos -= Vec3(0, 0, 3)
-        obj = Rock(pos, Vec3(*hpr), self.natures)
-        self.world.attach(obj.node())
+        scale = Vec3(random.randint(3, 5), 3, random.randint(3, 5))  # Vec3(5, 3, 5)
+        rock = Rock(pos, scale, hpr)
+        rock.reparent_to(self.natures)
+        self.world.attach(rock.node())
+
+    def flower(self, pos):
+        h = random.choice(self.angles)
+        flower = Flower(pos, Vec3(h, 0, 0))
+        flower.reparent_to(self.natures)
+
+    def grass(self, pos):
+        h = random.choice(self.angles)
+        grass = Grass(pos, Vec3(h, 0, 0))
+        grass.reparent_to(self.natures)

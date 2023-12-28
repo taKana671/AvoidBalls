@@ -111,10 +111,10 @@ class HeightfieldTiles:
         bottom_l = img[h - 1:h * 2 - 1, :w]
         bottom_r = img[h - 1:h * 2 - 1, w - 1:w * 2 - 1]
 
-        cv2.imwrite(Files.TOP_LEFT.file_path, top_l)
-        cv2.imwrite(Files.TOP_RIGHT.file_path, top_r)
-        cv2.imwrite(Files.BOTTOM_LEFT.file_path, bottom_l)
-        cv2.imwrite(Files.BOTTOM_RIGHT.file_path, bottom_r)
+        cv2.imwrite(Files.TOP_LEFT.path, top_l)
+        cv2.imwrite(Files.TOP_RIGHT.path, top_r)
+        cv2.imwrite(Files.BOTTOM_LEFT.path, bottom_l)
+        cv2.imwrite(Files.BOTTOM_RIGHT.path, bottom_r)
 
     def get_array(self, path):
         df = pd.read_csv(path, header=None).replace('e', 0)
@@ -163,12 +163,12 @@ if __name__ == '__main__':
     # Heightfield('terrains/heightfield_texts/14516_6445.txt').make_image()
     # Heightfield('terrains/heightfield_texts/14516_6445.txt').make_img2()
 
-    li = [
-        ['14517_6447.txt', '14518_6447.txt'],
-        ['14517_6448.txt', '14518_6448.txt'],
-    ]
+    # li = [
+    #     ['14517_6447.txt', '14518_6447.txt'],
+    #     ['14517_6448.txt', '14518_6448.txt'],
+    # ]
 
-    HeightfieldTiles().concat_from_files(li)
+    # HeightfieldTiles().concat_from_files(li)
     # Heightfield().mirror_image('14515_6445.txt')
 
-    # Heightfield().concat_from_url(14, 14525, 6396)
+    HeightfieldTiles().concat_from_url(14, 14404, 6459)

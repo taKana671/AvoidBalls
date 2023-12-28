@@ -17,6 +17,7 @@ from panda3d.core import GeoMipTerrain
 
 from walker import Walker
 from terrain_creator import TerrainCreator
+from lights import BasicAmbientLight, BasicDayLight
 
 
 load_prc_file_data("", """
@@ -50,6 +51,10 @@ class Sample(ShowBase):
         self.disable_mouse()
         self.world = BulletWorld()
         self.world.set_gravity(0, 0, -9.81)
+
+        BasicAmbientLight()
+        BasicDayLight()
+
 
         self.debug_np = self.render.attach_new_node(BulletDebugNode('debug'))
         self.world.set_debug_node(self.debug_np.node())
