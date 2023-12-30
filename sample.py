@@ -4,20 +4,13 @@ from direct.showbase.ShowBase import ShowBase
 from direct.showbase.ShowBaseGlobal import globalClock
 from direct.showbase.InputStateGlobal import inputState
 from panda3d.bullet import BulletWorld, BulletDebugNode, BulletRigidBodyNode, BulletSphereShape
-from panda3d.bullet import BulletHeightfieldShape, ZUp
-from panda3d.core import NodePath, PandaNode
-from panda3d.core import Vec3, Point3, BitMask32, LColor
-from panda3d.core import Filename
-from panda3d.core import PNMImage
-from panda3d.core import ShaderTerrainMesh, Shader, load_prc_file_data
-from panda3d.core import SamplerState
-from panda3d.core import CardMaker, TextureStage, Texture
-from panda3d.core import TransparencyAttrib, TransformState
-from panda3d.core import GeoMipTerrain
+from panda3d.core import NodePath
+from panda3d.core import BitMask32, LColor
+from panda3d.core import load_prc_file_data
 
 from walker import Walker
-from terrain_creator import TerrainCreator
-from lights import BasicAmbientLight, BasicDayLight
+# from terrain_creator import TerrainCreator
+from scene import Scene
 
 
 load_prc_file_data("", """
@@ -52,9 +45,8 @@ class Sample(ShowBase):
         self.world = BulletWorld()
         self.world.set_gravity(0, 0, -9.81)
 
-        BasicAmbientLight()
-        BasicDayLight()
-
+        self.scene = Scene(self.world)
+        self.scene.reparent_to(self.render)
 
         self.debug_np = self.render.attach_new_node(BulletDebugNode('debug'))
         self.world.set_debug_node(self.debug_np.node())
@@ -75,8 +67,8 @@ class Sample(ShowBase):
         # *****when debug***************
 
         # self.make_terrain()
-        self.terrain_creator = TerrainCreator(self.world)
-        self.terrain_creator.make_terrain()
+        # self.terrain_creator = TerrainCreator(self.world)
+        # self.terrain_creator.make_terrain()
         # terrain_creator.make_geomip_terrain()
         # self.render.setShaderAuto()
 
@@ -93,7 +85,8 @@ class Sample(ShowBase):
         self.accept('p', self.print_position)
         self.accept('escape', sys.exit)
         self.taskMgr.add(self.update, 'update')
-        self.taskMgr.add(self.terrain_creator.setup_nature, 'setup_nature')
+        # self.taskMgr.add(self.terrain_creator.setup_nature, 'setup_nature')
+        self.taskMgr.add(self.scene.terrain_root.setup_nature, 'setup_nature')
 
     def print_position(self):
         print(self.walker.get_pos())
@@ -109,7 +102,7 @@ class Sample(ShowBase):
         dt = globalClock.get_dt()
         self.control_walker(dt)
 
-        # for t in self.terrain_creator.terrain_roots:
+        # for t in self.scene.terrain_root.terrain_roots:
         #     t.update()
 
         # self.terrain_creator.terrains.set_z(self.terrain_creator.terrains.get_z() - 10 * dt)

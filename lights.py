@@ -8,19 +8,11 @@ class BasicAmbientLight(NodePath):
     def __init__(self):
         super().__init__(AmbientLight('ambient_light'))
         base.render.set_light(self)
-        self.set_brightness()
-        self.reparent_to(base.render)
-
-    def set_brightness(self, color=None):
-        if color is None:
-            color = LColor(0.6, 0.6, 0.6, 1)
-
-        self.node().set_color(color)
+        # self.reparent_to(base.render)
 
 
 class BasicDayLight(NodePath):
 
-    # def __init__(self, parent):
     def __init__(self):
         super().__init__(DirectionalLight('directional_light'))
         self.node().get_lens().set_film_size(200, 200)
@@ -36,12 +28,4 @@ class BasicDayLight(NodePath):
 
         base.render.set_light(self)
         base.render.set_shader_auto()
-        self.set_brightness()
-        # self.reparent_to(parent)
-        self.reparent_to(base.render)
-
-    def set_brightness(self, color=None):
-        if color is None:
-            color = LColor(1, 1, 1, 1)
-
-        self.node().set_color(color)
+        # self.reparent_to(base.render)

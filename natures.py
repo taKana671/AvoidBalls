@@ -38,10 +38,25 @@ class FirTree(Natures):
 
 class PineTree(Natures):
 
-    def __init__(self, pos, hpr, scale=1.5):
+    def __init__(self, pos, hpr, scale=1.0):
         super().__init__(BulletRigidBodyNode('pine_tree'), pos, scale, hpr)
         model = base.loader.loadModel('models/pinetree/tree2.bam')
         model.set_transform(TransformState.make_pos(Vec3(-0.1, 0.12, 0)))
+        model.reparent_to(self)
+
+        end, tip = model.get_tight_bounds()
+        height = (tip - end).z
+        shape = BulletCylinderShape(0.3, height, ZUp)
+        self.node().add_shape(shape)
+        self.set_collide_mask(Natures.mask)
+
+
+class PalmTree(Natures):
+
+    def __init__(self, pos, hpr, scale=1.5):
+        super().__init__(BulletRigidBodyNode('pine_tree'), pos, scale, hpr)
+        model = base.loader.loadModel('models/palmtree/tree3.bam')
+        model.set_transform(TransformState.make_pos(Vec3(-0.5, -0.03, 0)))
         model.reparent_to(self)
 
         end, tip = model.get_tight_bounds()
@@ -93,9 +108,13 @@ class Grass(Natures):
 
     def __init__(self, pos, hpr, scale=0.05):
         super().__init__(PandaNode('flower'), pos, scale, hpr)
-        # super().__init__(PandaNode(f'grass{pos.x}'))
         model = base.loader.loadModel('models/shrubbery/shrubbery')
         model.reparent_to(self)
-        # model.set_scale(0.05)
-        # self.set_pos(pos)
-        # self.reparent_to(parent)
+
+
+class RedFlower(Natures):
+
+    def __init__(self, pos, hpr, scale=3):
+        super().__init__(PandaNode('flower'), pos, scale, hpr)
+        model = base.loader.loadModel('models/tulip/Tulip')
+        model.reparent_to(self)
