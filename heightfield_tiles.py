@@ -8,13 +8,21 @@ import cv2
 from panda3d.core import Point2, Vec2
 
 
-DIR = 'terrains/heightfield_texts'
-IMG_DIR = 'terrains'
+DIR = 'terrains'
 
 
 class TileSizeError(Exception):
     """Raised when tile size is not (256, 256)
     """
+
+
+class Areas(Enum):
+
+    LOWLAND = auto()
+    PLAIN = auto()
+    MOUNTAIN = auto()
+    SUBALPINE = auto()
+    ALPINE = auto()
 
 
 class Files(Enum):
@@ -27,7 +35,7 @@ class Files(Enum):
     @property
     def path(self):
         name = self.name.lower()
-        return f'{IMG_DIR}/{name}.png'
+        return f'{DIR}/{name}.png'
 
 
 class Tile:
@@ -46,11 +54,30 @@ class Tile:
         img = cv2.imread(self.file.path)
         row, col, _ = img.shape
 
-        for r in range(row):
-            for c in range(col):
-                color = img[r, c, 0]
-                x, y = self.change_pixel_to_cartesian(r, c)
-                yield x, y, color
+        # lowground zone
+        pixel_coords = set((x, y) for x, y, _ in zip(*np.where(img == 50)))
+        yield from self.generate(pixel_coords, Areas.LOWLAND)
+
+        # plain
+        pixel_coords = set((x, y) for x, y, _ in zip(*np.where(img == 90)))
+        yield from self.generate(pixel_coords, Areas.PLAIN)
+
+        # mountain zone
+        pixel_coords = set((x, y) for x, y, _ in zip(*np.where(img == 130)))
+        yield from self.generate(pixel_coords, Areas.MOUNTAIN)
+
+        # subalpine zone
+        pixel_coords = set((x, y) for x, y, _ in zip(*np.where(img == 150)))
+        yield from self.generate(pixel_coords, Areas.SUBALPINE)
+
+        # alpine zone
+        pixel_coords = set((x, y) for x, y, _ in zip(*np.where(img == 200)))
+        yield from self.generate(pixel_coords, Areas.ALPINE)
+
+    def generate(self, gen, area):
+        for x, y in gen:
+            cx, cy = self.change_pixel_to_cartesian(x, y)
+            yield cx, cy, area
 
     def count_pixels(self, start, end):
         img = cv2.imread(self.file.path)
@@ -118,7 +145,6 @@ class HeightfieldTiles:
 
     def get_array(self, path):
         df = pd.read_csv(path, header=None).replace('e', 0)
-
         if df.shape != (256, 256):
             raise TileSizeError('Tile size is not (256, 256)')
 
@@ -132,10 +158,17 @@ class HeightfieldTiles:
         cv2.imwrite('terrains/heightfield.png', img)
         self.crop(img)
 
-    def concat_from_files(self, file_list):
+    def concat_from_files(self, folder_name):
+        x, y = [int(s) for s in folder_name.split('_')]
+        li = [
+            [[x, y], [x + 1, y]],
+            [[x, y + 1], [x + 1, y + 1]]
+        ]
         arr = np.concatenate(
-            [np.concatenate([self.get_array(f'{DIR}/{file}') for file in files], 1) for files in file_list], 0
+            [np.concatenate([self.get_array(f'{DIR}/{x}_{y}.txt') for x, y in sub], 1) for sub in li], 0
         )
+
+        arr = arr.astype(np.float64)
         self.make_heightfield_images(arr)
 
     def concat_from_url(self, z, x, y):
@@ -148,6 +181,8 @@ class HeightfieldTiles:
         arr = np.concatenate(
             [np.concatenate([self.get_array(url.format(z, x, y)) for x, y in sub], 1) for sub in li], 0
         )
+
+        arr = arr.astype(np.float64)
         self.make_heightfield_images(arr)
 
     def mirror(self, file):
@@ -171,4 +206,4 @@ if __name__ == '__main__':
     # HeightfieldTiles().concat_from_files(li)
     # Heightfield().mirror_image('14515_6445.txt')
 
-    HeightfieldTiles().concat_from_url(14, 14404, 6459)
+    HeightfieldTiles().concat_from_url(14, 14072, 6861)

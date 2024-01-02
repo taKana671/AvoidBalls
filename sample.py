@@ -5,7 +5,7 @@ from direct.showbase.ShowBaseGlobal import globalClock
 from direct.showbase.InputStateGlobal import inputState
 from panda3d.bullet import BulletWorld, BulletDebugNode, BulletRigidBodyNode, BulletSphereShape
 from panda3d.core import NodePath
-from panda3d.core import BitMask32, LColor
+from panda3d.core import BitMask32, LColor, Point3
 from panda3d.core import load_prc_file_data
 
 from walker import Walker
@@ -61,6 +61,7 @@ class Sample(ShowBase):
         self.camera.look_at(self.floater)
         self.camLens.set_fov(90)
 
+
         # *****when debug***************
         # self.camera.set_pos(0, 0, 30)
         # self.camera.look_at(self.walker)
@@ -89,7 +90,8 @@ class Sample(ShowBase):
         self.taskMgr.add(self.scene.terrain_root.setup_nature, 'setup_nature')
 
     def print_position(self):
-        print(self.walker.get_pos())
+        self.scene.terrain_root.replace_terrain()
+        # print(self.walker.get_pos())
 
     def toggle_debug(self):
         if self.debug_np.is_hidden():
@@ -102,8 +104,8 @@ class Sample(ShowBase):
         dt = globalClock.get_dt()
         self.control_walker(dt)
 
-        # for t in self.scene.terrain_root.terrain_roots:
-        #     t.update()
+        for t in self.scene.terrain_root.terrains:
+            t.update()
 
         # self.terrain_creator.terrains.set_z(self.terrain_creator.terrains.get_z() - 10 * dt)
         self.world.do_physics(dt)
