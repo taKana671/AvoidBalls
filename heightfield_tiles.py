@@ -8,12 +8,7 @@ import cv2
 from panda3d.core import Point2, Vec2
 
 
-DIR = 'terrains'
-
-
-class TileSizeError(Exception):
-    """Raised when tile size is not (256, 256)
-    """
+TERRAIN_DIR = 'terrains'
 
 
 class Areas(Enum):
@@ -25,62 +20,35 @@ class Areas(Enum):
     ALPINE = auto()
 
 
-class Files(Enum):
-
-    TOP_LEFT = auto()
-    TOP_RIGHT = auto()
-    BOTTOM_LEFT = auto()
-    BOTTOM_RIGHT = auto()
-
-    @property
-    def path(self):
-        name = self.name.lower()
-        return f'{DIR}/{name}.png'
-
-
 class Tile:
     """
     Args
         center (Point2)
     """
 
-    def __init__(self, file, center, size=256):
+    def __init__(self, file, quadrant, size):
         self.file = file
-        self.center = center
-        self.origin = center - Vec2(128, 128)
+        self.center = quadrant * (size / 2)
+        # self.origin = self.center - Vec2(size / 2)
         self.size = size
 
     def __iter__(self):
-        img = cv2.imread(self.file.path)
+        img = cv2.imread(self.file)
         row, col, _ = img.shape
 
-        # lowground zone
-        pixel_coords = set((x, y) for x, y, _ in zip(*np.where(img == 50)))
-        yield from self.generate(pixel_coords, Areas.LOWLAND)
+        yield from self.generate(img, 50, Areas.LOWLAND)     # lowground zone
+        yield from self.generate(img, 90, Areas.PLAIN)       # plain
+        yield from self.generate(img, 130, Areas.MOUNTAIN)   # mountain zone
+        yield from self.generate(img, 150, Areas.SUBALPINE)  # subalpine zone
+        yield from self.generate(img, 200, Areas.ALPINE)     # alpine zone
 
-        # plain
-        pixel_coords = set((x, y) for x, y, _ in zip(*np.where(img == 90)))
-        yield from self.generate(pixel_coords, Areas.PLAIN)
-
-        # mountain zone
-        pixel_coords = set((x, y) for x, y, _ in zip(*np.where(img == 130)))
-        yield from self.generate(pixel_coords, Areas.MOUNTAIN)
-
-        # subalpine zone
-        pixel_coords = set((x, y) for x, y, _ in zip(*np.where(img == 150)))
-        yield from self.generate(pixel_coords, Areas.SUBALPINE)
-
-        # alpine zone
-        pixel_coords = set((x, y) for x, y, _ in zip(*np.where(img == 200)))
-        yield from self.generate(pixel_coords, Areas.ALPINE)
-
-    def generate(self, gen, area):
-        for x, y in gen:
+    def generate(self, img, color, area):
+        for x, y in set((x, y) for x, y, _ in zip(*np.where(img == color))):
             cx, cy = self.change_pixel_to_cartesian(x, y)
             yield cx, cy, area
 
     def count_pixels(self, start, end):
-        img = cv2.imread(self.file.path)
+        img = cv2.imread(self.file)
 
         if start < 0:
             start = 0
@@ -91,8 +59,9 @@ class Tile:
         return count
 
     def change_pixel_to_cartesian(self, y, x):
-        cx = x - 128
-        cy = -(y - 128)
+        half = self.size / 2
+        cx = x - half
+        cy = -(y - half)
         cx += self.center.x
         cy += self.center.y
         return cx, cy
@@ -101,18 +70,32 @@ class Tile:
 class HeightfieldTiles:
 
     def __init__(self):
-        self._tiles = [
-            Tile(Files.TOP_LEFT, Vec2(-128, 128)),
-            Tile(Files.TOP_RIGHT, Vec2(128, 128)),
-            Tile(Files.BOTTOM_LEFT, Vec2(-128, -128)),
-            Tile(Files.BOTTOM_RIGHT, Vec2(128, -128))
-        ]
+        self.creator = HeightfieldCreator()
 
-        self.tile_size = 256
-        self.dir = 'terrains'
+        self._tiles = [
+            Tile(self.creator.top_left, Point2(-1, 1), self.creator.size),
+            Tile(self.creator.top_right, Point2(1, 1), self.creator.size),
+            Tile(self.creator.bottom_left, Point2(-1, -1), self.creator.size),
+            Tile(self.creator.bottom_right, Point2(1, -1), self.creator.size)
+        ]
 
     def __iter__(self):
         yield from self._tiles
+
+
+class TileSizeError(Exception):
+    """Raised when tile size is not (256, 256)
+    """
+
+
+class HeightfieldCreator:
+
+    def __init__(self):
+        self.size = 256
+        self.top_left = f'{TERRAIN_DIR}/top_left.png'
+        self.top_right = f'{TERRAIN_DIR}/top_right.png'
+        self.bottom_left = f'{TERRAIN_DIR}/bottom_left.png'
+        self.bottom_right = f'{TERRAIN_DIR}/bottom_right.png'
 
     def find_size(self, current, size=1):
         size *= 2
@@ -138,10 +121,10 @@ class HeightfieldTiles:
         bottom_l = img[h - 1:h * 2 - 1, :w]
         bottom_r = img[h - 1:h * 2 - 1, w - 1:w * 2 - 1]
 
-        cv2.imwrite(Files.TOP_LEFT.path, top_l)
-        cv2.imwrite(Files.TOP_RIGHT.path, top_r)
-        cv2.imwrite(Files.BOTTOM_LEFT.path, bottom_l)
-        cv2.imwrite(Files.BOTTOM_RIGHT.path, bottom_r)
+        cv2.imwrite(self.top_left, top_l)
+        cv2.imwrite(self.top_right, top_r)
+        cv2.imwrite(self.bottom_left, bottom_l)
+        cv2.imwrite(self.bottom_right, bottom_r)
 
     def get_array(self, path):
         df = pd.read_csv(path, header=None).replace('e', 0)
@@ -154,18 +137,19 @@ class HeightfieldTiles:
         arr = np.interp(arr, (arr.min(), arr.max()), (0, 256 * 256))
         arr = self.enlarge(arr)
         img = arr.astype(np.uint16)
-        # import pdb; pdb.set_trace()
-        cv2.imwrite('terrains/heightfield.png', img)
+
+        cv2.imwrite(f'{TERRAIN_DIR}/heightfield.png', img)
         self.crop(img)
 
     def concat_from_files(self, folder_name):
+        path = f'{TERRAIN_DIR}/{folder_name}'
         x, y = [int(s) for s in folder_name.split('_')]
         li = [
             [[x, y], [x + 1, y]],
             [[x, y + 1], [x + 1, y + 1]]
         ]
         arr = np.concatenate(
-            [np.concatenate([self.get_array(f'{DIR}/{x}_{y}.txt') for x, y in sub], 1) for sub in li], 0
+            [np.concatenate([self.get_array(f'{path}/{x}_{y}.txt') for x, y in sub], 1) for sub in li], 0
         )
 
         arr = arr.astype(np.float64)
@@ -185,8 +169,8 @@ class HeightfieldTiles:
         arr = arr.astype(np.float64)
         self.make_heightfield_images(arr)
 
-    def mirror(self, file):
-        top_l = self.get_array(f'{DIR}/{file}')
+    def mirror(self, path):
+        top_l = self.get_array(path)
         top_r = np.fliplr(top_l)
         top = np.concatenate([top_l, top_r], 1)
         bottom = np.flipud(top)
@@ -198,12 +182,12 @@ if __name__ == '__main__':
     # Heightfield('terrains/heightfield_texts/14516_6445.txt').make_image()
     # Heightfield('terrains/heightfield_texts/14516_6445.txt').make_img2()
 
-    # li = [
-    #     ['14517_6447.txt', '14518_6447.txt'],
-    #     ['14517_6448.txt', '14518_6448.txt'],
-    # ]
+    li = [
+        ['14517_6447.txt', '14518_6447.txt'],
+        ['14517_6448.txt', '14518_6448.txt'],
+    ]
 
-    # HeightfieldTiles().concat_from_files(li)
+    HeightfieldCreator().concat_from_files('14404_6459')
     # Heightfield().mirror_image('14515_6445.txt')
 
-    HeightfieldTiles().concat_from_url(14, 14072, 6861)
+    # HeightfieldCreator().concat_from_url(14, 14072, 6861)

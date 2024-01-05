@@ -26,9 +26,9 @@ class Scene(NodePath):
         self.sky = Sky()
         self.sky.reparent_to(self)
 
-        self.terrain_root = TerrainRoot(self.world)
+        self.terrains = TerrainRoot(self.world)
         # self.terrain_root.create_3d_terrain()
-        self.terrain_root.reparent_to(self)
+        self.terrains.reparent_to(self)
 
     def setup_lights(self):
         self.ambient_light = BasicAmbientLight()

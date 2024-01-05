@@ -22,21 +22,6 @@ load_prc_file_data("", """
     stm-max-chunk-count 2048""")
 
 
-class Sphere(NodePath):
-
-    def __init__(self):
-        super().__init__(BulletRigidBodyNode('sphere'))
-        model = base.loader.load_model('models/sphere/sphere')
-        model.reparent_to(self)
-        model.set_scale(0.2)
-        model.setColor(LColor(1, 0, 0, 1))
-        shape = BulletSphereShape(0.8)
-        self.node().add_shape(shape)
-        self.set_collide_mask(BitMask32.bit(1))
-        self.node().set_mass(1)
-        self.reparent_to(base.render)
-
-
 class Sample(ShowBase):
 
     def __init__(self):
@@ -73,10 +58,6 @@ class Sample(ShowBase):
         # terrain_creator.make_geomip_terrain()
         # self.render.setShaderAuto()
 
-        self.sphere = Sphere()
-        self.sphere.set_pos(0, 0, 20)
-        self.world.attach(self.sphere.node())
-
         inputState.watch_with_modifiers('forward', 'arrow_up')
         inputState.watch_with_modifiers('backward', 'arrow_down')
         inputState.watch_with_modifiers('left', 'arrow_left')
@@ -86,11 +67,10 @@ class Sample(ShowBase):
         self.accept('p', self.print_position)
         self.accept('escape', sys.exit)
         self.taskMgr.add(self.update, 'update')
-        # self.taskMgr.add(self.terrain_creator.setup_nature, 'setup_nature')
-        self.taskMgr.add(self.scene.terrain_root.setup_nature, 'setup_nature')
+        self.taskMgr.do_method_later(0.2, self.scene.terrains.setup_nature, 'setup_nature')
 
     def print_position(self):
-        self.scene.terrain_root.replace_terrain()
+        self.scene.terrains.replace_terrain()
         # print(self.walker.get_pos())
 
     def toggle_debug(self):
@@ -104,8 +84,8 @@ class Sample(ShowBase):
         dt = globalClock.get_dt()
         self.control_walker(dt)
 
-        for t in self.scene.terrain_root.terrains:
-            t.update()
+        # for t in self.scene.terrain_root.terrains:
+        #     t.update()
 
         # self.terrain_creator.terrains.set_z(self.terrain_creator.terrains.get_z() - 10 * dt)
         self.world.do_physics(dt)

@@ -1,6 +1,9 @@
 import itertools
+import pathlib
 import random
 from enum import Enum, auto
+
+from datetime import datetime
 
 from panda3d.bullet import BulletRigidBodyNode
 from panda3d.bullet import BulletSphereShape, BulletHeightfieldShape, ZUp
@@ -159,41 +162,66 @@ class Rocks(NodePath):
         self.world.attach(rock.node())
 
 
-# class BulletTerrain(NodePath):
-
-#     def __init__(self, pos):
-#         super().__init__(BulletRigidBodyNode('compoundTerrain'))
-#         self.set_pos(pos)
-#         self.node().set_mass(0)
-#         self.set_collide_mask(BitMask32.bit(1))
-#         # self.node().set_kinematic(True)
-
-#     def compound(self, file_path, height, pos):
-#         img = PNMImage(Filename(file_path))
-#         shape = BulletHeightfieldShape(img, height, ZUp)
-#         shape.set_use_diamond_subdivision(True)
-#         ts = TransformState.make_pos(Point3(pos.x + 128.5, pos.y + 128.5, 0))
-#         self.node().add_shape(shape, ts)
-
-
 class BulletTerrain(NodePath):
 
-    def __init__(self, pos, root, file_path, height):
+    def __init__(self, tile, height):
         super().__init__(BulletRigidBodyNode('compoundTerrain'))
-        self.set_pos(pos)
-        # self.set_pos(Point3(pos.x + 128.5, pos.y + 128.5, 0))
+        self.tile = tile
+        self.height = height
+
+        self.set_pos(Point3(self.tile.center, 0))
         self.node().set_mass(0)
         self.set_collide_mask(BitMask32.bit(1))
+        self.add_terrain_shape()
         # self.node().set_kinematic(True)
 
-        img = PNMImage(Filename(file_path))
-        shape = BulletHeightfieldShape(img, height, ZUp)
+    def add_terrain_shape(self):
+        img = PNMImage(Filename(self.tile.file))
+        shape = BulletHeightfieldShape(img, self.height, ZUp)
         shape.set_use_diamond_subdivision(True)
-        # ts = TransformState.make_pos(Point3(pos.x + 128.5, pos.y + -128.5, 0))
-        # self.node().add_shape(shape, ts)
         self.node().add_shape(shape)
 
-        self.root = root
+    def remove_terrain_shape(self):
+        for shape in self.node().get_shapes():
+            self.node().remove_shape(shape)
+
+    def replace_heightfield(self):
+        self.remove_terrain_shape()
+        self.add_terrain_shape()
+        self.terrain.set_heightfield(self.tile.file)
+        self.terrain.generate()
+
+    def make_geomip_terrain(self, texture_set):
+        name = pathlib.Path(self.tile.file).stem
+        self.terrain = GeoMipTerrain(f'terrain_{name}')
+        self.terrain.set_heightfield(self.tile.file)
+        # terrain.setBruteforce(True)
+        self.terrain.set_border_stitching(True)
+        # terrain.clear_color_map()
+        # block_size 8 and min 2, or block_size 16 and min 3 is good.
+        self.terrain.set_block_size(8)
+        self.terrain.set_min_level(2)
+        self.terrain.set_focal_point(base.camera)
+
+        pos = Point3(-self.tile.size / 2, -self.tile.size / 2, -(self.height / 2))
+        self.root = self.terrain.get_root()
+        self.root.set_scale(Vec3(1, 1, self.height))
+        self.root.set_pos(pos)
+        self.terrain.generate()
+        self.root.reparent_to(self)
+
+        shader = Shader.load(Shader.SL_GLSL, 'shaders/terrain_v.glsl', 'shaders/terrain_f.glsl')
+        self.root.set_shader(shader)
+
+        self.texture_to_terrain(texture_set)
+
+    def texture_to_terrain(self, texture_set):
+        self.root.clear_texture()
+        for i, (tex, tex_scale) in enumerate(texture_set):
+            ts = TextureStage(f'ts{i}')
+            ts.set_sort(i)
+            self.root.set_shader_input(f'tex_ScaleFactor{i}', tex_scale)
+            self.root.set_texture(ts, tex)
 
 
 class TerrainRoot(NodePath):
@@ -203,12 +231,8 @@ class TerrainRoot(NodePath):
         self.world = world
         self.height = 30
 
-        self.terrains_np = NodePath('terrains')
-        self.terrains_np.reparent_to(self)
-
-        # self.bullet_terrain_np = BulletTerrain(Point3(0, 0, 0))
-        # self.bullet_terrain_np.reparent_to(self.terrains_np)
-        # self.world.attach(self.bullet_terrain_np.node())
+        self.terrains = NodePath('terrains')
+        self.terrains.reparent_to(self)
 
         self.water = WaterSurface()
         self.water.reparent_to(self)
@@ -221,180 +245,53 @@ class TerrainRoot(NodePath):
 
         self.test_shape = BulletSphereShape(4)
 
-        self.terrains = []
+        self.bullet_terrains = []
         self.heightfield_tiles = HeightfieldTiles()
-        # self.tiles_gen = itertools.chain(
-        #     *[tile for tile in self.heightfield_tiles])
-
-        self.tiles_gen = itertools.chain(self.heightfield_tiles._tiles[0])
+        self.initialize(TerrainImages)
 
 
-        self.setup_terrain()
+    def load_texture_set(self, texture_set):
+        for item in texture_set:
+            tex = base.loader.load_texture(item.path)
+            yield tex, item.tex_scale
 
-    # def initialize(self):
-    #     self.setup_terrain()
-    #     self.set_tex_to_terrain(TerrainImages)
-    #     self.set_shader_to_terrain()
+    def replace_terrain(self, texture_set=None):
+        texture_set = [(tex, scale) for tex, scale in self.load_texture_set(TerrainImages2)]
 
-    # def set_tex_to_terrain(self, images):
-    #     for i, file in enumerate(TerrainImages):
-    #         tex = base.loader.load_texture(file.path)
-    #         ts = TextureStage(f'ts{i}')
-    #         ts.set_sort(i)
-
-    #         for terrain in self.terrains:
-    #             root = terrain.get_root()
-    #             root.set_texture(ts, tex)
-      
-    # def set_shader_to_terrain(self, images):
-    #     terrain_shader = Shader.load(Shader.SL_GLSL, 'shaders/terrain_v.glsl', 'shaders/terrain_f.glsl')
-        
-    #     for terrain in self.terrains:
-    #         root = terrain.get_root()
-
-
-    #         for i, file in enumerate(TerrainImages):
-    #             root.set_shader_input(f'tex_ScaleFactor{i}', file.tex_scale)
-
-    # def remove_natures(self):
-
-
-    def load_textures(self):
-        for i, file in enumerate(TerrainImages):
-            ts = TextureStage(f'ts{i}')
-            ts.set_sort(i)
-            texture = base.loader.load_texture(file.path)
-            yield ts, texture
-
-    def load_textures2(self):
-        for i, file in enumerate(TerrainImages2):
-            ts = TextureStage(f'ts{i}')
-            ts.set_sort(i)
-            texture = base.loader.load_texture(file.path)
-            yield ts, texture
-
-
-    def replace_terrain(self):
         for nature in [self.water, self.trees, self.flowers, self.rocks]:
             nature.remove_from_terrain()
 
-        for shape in self.bullet_terrain_np.node().get_shapes():
-            self.bullet_terrain_np.node().remove_shape(shape)
+        for bullet_terrain in self.bullet_terrains:
+            bullet_terrain.replace_heightfield()
 
-        textures = [(ts, tex) for ts, tex in self.load_textures2()]
+            if texture_set is not None:
+                bullet_terrain.texture_to_terrain(texture_set)
 
-        for i, tile in enumerate(self.heightfield_tiles):
-            terrain = self.terrains[i]
-            terrain.set_heightfield(tile.file.path)
-            root = terrain.get_root()
-            self.bullet_terrain_np.compound(tile.file.path, self.height, root.get_pos())
+        base.taskMgr.do_method_later(0.2, self.setup_nature, 'setup_nature')
 
-            if tile.count_pixels(0, 100) >= 1000:
-                self.water.add_to_terrain(Point3(tile.origin, root.get_z() + 2))
+    def initialize(self, texture_set):
+        texture_set = [(tex, scale) for tex, scale in self.load_texture_set(texture_set)]
 
-            root.clear_texture()
-            for ts, tex in textures:
-                # old_tex = root.get_texture()
-                # root.replace_texture(old_tex, tex)
-                # root.clear_texture(ts)
-                root.set_texture(ts, tex)
-            # terrain.generate()
-
-            # terrain_shader = Shader.load(Shader.SL_GLSL, 'shaders/terrain_v.glsl', 'shaders/terrain_f.glsl')
-            # root.set_shader(terrain_shader)
-
-            # for i, file in enumerate(TerrainImages2):
-            #     root.set_shader_input(f'tex_ScaleFactor{i}', file.tex_scale)
-
-
-    def setup_terrain(self):
-        textures = [(ts, tex) for ts, tex in self.load_textures()]
-
-        for i, tile in enumerate(self.heightfield_tiles):
-            terrain = GeoMipTerrain(f'terrain{i}')
-            terrain.set_heightfield(tile.file.path)
-            # terrain.setBruteforce(True)
-            terrain.set_border_stitching(True)
-            # terrain.clear_color_map()
-            # block_size 8 and min 2, or block_size 16 and min 3 is good.
-            terrain.set_block_size(8)
-            terrain.set_min_level(2)
-            terrain.set_focal_point(base.camera)
-
-            root_pos = Point3(tile.origin.x - 0.5, tile.origin.y - 0.5, -(self.height / 2))
-            root = terrain.get_root()
-            root.set_scale(Vec3(1, 1, self.height))
-            root.set_pos(root_pos)
-            # root.set_two_sided(True) <- opposite side is textured too.
-
-            for ts, tex in textures:
-                root.set_texture(ts, tex)
-
-            root.reparent_to(self.terrains_np)
-            terrain.generate()
-
-            pos = Point3(tile.center.x, tile.center.y, 0)
-            bullet_terrain = BulletTerrain(pos, root, tile.file.path, self.height)
-            bullet_terrain.reparent_to(self.terrains_np)
+        for tile in self.heightfield_tiles:
+            bullet_terrain = BulletTerrain(tile, self.height)
+            bullet_terrain.make_geomip_terrain(texture_set)
+            bullet_terrain.reparent_to(self.terrains)
             self.world.attach(bullet_terrain.node())
+            self.bullet_terrains.append(bullet_terrain)
 
-            # self.bullet_terrain_np.compound(tile.file.path, self.height, root_pos)
+    def setup_nature(self, task):
+        print(datetime.now())
+        for i, terrain in enumerate(self.bullet_terrains):
+            if terrain.tile.count_pixels(0, 100) >= 1000:
+                xy = terrain.tile.center - Vec2(terrain.tile.size / 2)
+                z = terrain.root.get_z() + 2
+                self.water.add_to_terrain(Point3(xy, z))
 
-            terrain_shader = Shader.load(Shader.SL_GLSL, 'shaders/terrain_v.glsl', 'shaders/terrain_f.glsl')
-            root.set_shader(terrain_shader)
+            base.taskMgr.add(self.add_nature, f'add_nature_{i}', extraArgs=[iter(terrain.tile)], appendTask=True)
 
-            for i, file in enumerate(TerrainImages):
-                root.set_shader_input(f'tex_ScaleFactor{i}', file.tex_scale)
+        return task.done
 
-            if tile.count_pixels(0, 100) >= 1000:
-                self.water.add_to_terrain(Point3(tile.origin, root_pos.z + 2))
-
-            self.terrains.append(terrain)
-
-
-
-    # def make_terrain(self):
-    #     textures = [(ts, tex) for ts, tex in self.load_textures()]
-
-    #     for i, tile in enumerate(self.heightfield_tiles):
-    #         terrain = GeoMipTerrain(f'terrain{i}')
-    #         terrain.set_heightfield(tile.file.path)
-    #         # terrain.setBruteforce(True)
-    #         terrain.set_border_stitching(True)
-    #         # terrain.clear_color_map()
-    #         # block_size 8 and min 2, or block_size 16 and min 3 is good.
-    #         terrain.set_block_size(8)
-    #         terrain.set_min_level(2)
-    #         terrain.set_focal_point(base.camera)
-
-    #         root = terrain.get_root()
-    #         root.set_scale(1, 1, self.height)
-    #         root.set_pos(Point3(tile.origin.x - 0.5, tile.origin.y - 0.5, -(self.height / 2)))
-    #         # root.set_two_sided(True) <- opposite side is textured too.
-
-    #         for ts, tex in textures:
-    #             root.set_texture(ts, tex)
-
-    #         root.reparent_to(self.terrains)
-    #         terrain.generate()
-
-    #         # Point3(pos.x + 128.5, pos.y + 128.5, 0)
-    #         pos = Point3(root.get_x() + 128.5, root.get_y() + 128.5, 0)
-    #         self.bullet_terrain.compound(tile.file.path, self.height, pos)
-
-    #         terrain_shader = Shader.load(Shader.SL_GLSL, 'shaders/terrain_v.glsl', 'shaders/terrain_f.glsl')
-    #         root.set_shader(terrain_shader)
-
-    #         for i, file in enumerate(TerrainImages):
-    #             root.set_shader_input(f'tex_ScaleFactor{i}', file.tex_scale)
-
-    #         if tile.count_pixels(0, 100) >= 1000:
-    #             self.setup_water(tile)
-
-    #         self.terrain_roots.append(terrain)
-
-   
-    def find_position(self, x, y):
+    def check_position(self, x, y):
         pt_from = Point3(x, y, 30)
         pt_to = Point3(x, y, -30)
 
@@ -407,31 +304,30 @@ class TerrainRoot(NodePath):
                 return result.get_hit_pos()
         return None
 
-    def setup_nature(self, task):
-        while True:
-            try:
-                x, y, area = next(self.tiles_gen)
-            except StopIteration:
-                print('nature, end')
-                return task.done
+    def add_nature(self, gen, task):
+        try:
+            x, y, area = next(gen)
+        except StopIteration:
+            print('nature, end', datetime.now())
+            return task.done
 
-            x += random.uniform(-10, 10)
-            y += random.uniform(-10, 10)
+        x += random.uniform(-10, 10)
+        y += random.uniform(-10, 10)
 
-            if pos := self.find_position(x, y):
-                # self.debug_line_center = create_line_node(Point3(wx, wy, 30), Point3(wx, wy, -30), LColor(1, 0, 0, 1))
-                # self.debug_line_center.reparent_to(base.render)
+        if pos := self.check_position(x, y):
+            # self.debug_line_center = create_line_node(Point3(wx, wy, 30), Point3(wx, wy, -30), LColor(1, 0, 0, 1))
+            # self.debug_line_center.reparent_to(base.render)
 
-                match area:
-                    case Areas.LOWLAND:
-                        self.rocks.add_to_terrain(Rock, pos)
-                    case Areas.PLAIN:
-                        self.flowers.add_to_terrain(RedFlower, pos)
-                    case Areas.MOUNTAIN:
-                        self.trees.add_to_terrain(PineTree, pos)
-                    case Areas.SUBALPINE:
-                        self.trees.add_to_terrain(FirTree, pos)
-                    case Areas.ALPINE:
-                        self.flowers.add_to_terrain(Grass, pos)
+            match area:
+                case Areas.LOWLAND:
+                    self.rocks.add_to_terrain(Rock, pos)
+                case Areas.PLAIN:
+                    self.flowers.add_to_terrain(RedFlower, pos)
+                case Areas.MOUNTAIN:
+                    self.trees.add_to_terrain(PineTree, pos)
+                case Areas.SUBALPINE:
+                    self.trees.add_to_terrain(FirTree, pos)
+                case Areas.ALPINE:
+                    self.flowers.add_to_terrain(Grass, pos)
 
-                return task.cont
+        return task.cont
