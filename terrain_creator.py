@@ -165,7 +165,7 @@ class Rocks(NodePath):
 class BulletTerrain(NodePath):
 
     def __init__(self, tile, height):
-        super().__init__(BulletRigidBodyNode('compoundTerrain'))
+        super().__init__(BulletRigidBodyNode('bullet_terrain'))
         self.tile = tile
         self.height = height
 
@@ -248,7 +248,6 @@ class TerrainRoot(NodePath):
         self.bullet_terrains = []
         self.heightfield_tiles = HeightfieldTiles()
         self.initialize(TerrainImages)
-
 
     def load_texture_set(self, texture_set):
         for item in texture_set:

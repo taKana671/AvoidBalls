@@ -7,6 +7,7 @@ class BasicAmbientLight(NodePath):
 
     def __init__(self):
         super().__init__(AmbientLight('ambient_light'))
+        self.node().set_color(LColor(0.6, 0.6, 0.6, 1))
         base.render.set_light(self)
         # self.reparent_to(base.render)
 
@@ -17,7 +18,8 @@ class BasicDayLight(NodePath):
         super().__init__(DirectionalLight('directional_light'))
         self.node().get_lens().set_film_size(200, 200)
         self.node().get_lens().set_near_far(10, 200)
-        self.set_pos_hpr(Point3(0, 0, 50), Vec3(-30, -45, 0))
+        self.node().set_color(LColor(1, 1, 1, 1))
+        self.set_pos_hpr(Point3(0, 0, 100), Vec3(-30, -45, 0))
         self.node().set_shadow_caster(True, 8192, 8192)
 
         state = self.node().get_initial_state()

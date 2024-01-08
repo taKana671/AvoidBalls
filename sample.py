@@ -11,6 +11,7 @@ from panda3d.core import load_prc_file_data
 from walker import Walker
 # from terrain_creator import TerrainCreator
 from scene import Scene
+from ball_controller import BallController
 
 
 load_prc_file_data("", """
@@ -46,6 +47,8 @@ class Sample(ShowBase):
         self.camera.look_at(self.floater)
         self.camLens.set_fov(90)
 
+        self.ball_controller = BallController(self.world, self.walker)
+
 
         # *****when debug***************
         # self.camera.set_pos(0, 0, 30)
@@ -70,8 +73,9 @@ class Sample(ShowBase):
         self.taskMgr.do_method_later(0.2, self.scene.terrains.setup_nature, 'setup_nature')
 
     def print_position(self):
-        self.scene.terrains.replace_terrain()
-        # print(self.walker.get_pos())
+        # self.scene.terrains.replace_terrain()
+        self.ball_controller.shoot()
+        print(self.walker.get_pos())
 
     def toggle_debug(self):
         if self.debug_np.is_hidden():
@@ -83,6 +87,7 @@ class Sample(ShowBase):
         # self.terrain.update()
         dt = globalClock.get_dt()
         self.control_walker(dt)
+        self.ball_controller.update(dt)
 
         # for t in self.scene.terrain_root.terrains:
         #     t.update()
