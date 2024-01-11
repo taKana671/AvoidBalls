@@ -42,7 +42,7 @@ class Ball(NodePath):
         for _ in range(10):
             ball = self.ball.copy_to(parent)
             ball.set_color(color)
-            start_scale = random.uniform(0.1, 0.3)
+            start_scale = random.uniform(0.2, 0.4)
             end_pt = start_pt + Vec3(random.uniform(-2, 2), random.uniform(-2, 2), random.uniform(1, 4))
             para = Parallel(
                 ProjectileInterval(ball, duration=0.5, startPos=start_pt, endPos=end_pt, gravityMult=1.0),

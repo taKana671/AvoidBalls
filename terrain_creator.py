@@ -156,7 +156,7 @@ class Rocks(NodePath):
     def add_to_terrain(self, model, pos):
         hpr = Vec3(*random.sample(self.angles, 3))
         pos -= Vec3(0, 0, 3)
-        scale = Vec3(random.randint(1, 3), 3, random.randint(1, 3))  # Vec3(5, 3, 5)
+        scale = Vec3(random.randint(1, 5), 3, random.randint(1, 5))  # Vec3(5, 3, 5)
         rock = model(pos, scale, hpr)
         rock.reparent_to(self)
         self.world.attach(rock.node())
