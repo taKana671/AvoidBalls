@@ -179,8 +179,6 @@ class HeightfieldCreator:
 
 
 if __name__ == '__main__':
-    # Heightfield('terrains/heightfield_texts/14516_6445.txt').make_image()
-    # Heightfield('terrains/heightfield_texts/14516_6445.txt').make_img2()
 
     li = [
         ['14517_6447.txt', '14518_6447.txt'],
