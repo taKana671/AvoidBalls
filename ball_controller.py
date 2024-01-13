@@ -1,15 +1,29 @@
 import math
 import random
 from collections import deque
+from enum import Enum
 
 import numpy as np
 from direct.interval.IntervalGlobal import ProjectileInterval, Parallel, Sequence, Func
 from panda3d.core import NodePath, TransformState
-from panda3d.core import BitMask32, LColor, Point3, Vec3
+from panda3d.core import BitMask32, LColor, Point3, Vec3, Point2
 from panda3d.bullet import BulletRigidBodyNode, BulletSphereShape
 
 
 from geomnode_maker import Sphere
+
+
+class Colors(Enum):
+
+    RED = LColor(1, 0, 0, 1)
+    BLUE = LColor(0, 0, 1, 1)
+    YELLOW = LColor(1, 1, 0, 1)
+    MAGENDA = LColor(1, 0, 1, 1)
+    LIME = LColor(0, 1, 0, 0)
+
+    @classmethod
+    def all_colors(cls):
+        return [color.value for color in cls]
 
 
 class Ball(NodePath):
@@ -19,19 +33,15 @@ class Ball(NodePath):
         self.ball = sphere.copy_to(self)
         self.set_scale(scale)
         self.set_color(color)
-        self.set_collide_mask(BitMask32.bit(1))
-        # self.node().set_mass(1)
+        self.set_collide_mask(BitMask32.bit(3))
         self.node().set_kinematic(True)
 
         end, tip = self.ball.get_tight_bounds()
         size = tip - end
         self.node().add_shape(BulletSphereShape(size.z / 2))
 
-        self.calc_passing_point(start_pt, end_pt)
-
-    def calc_passing_point(self, start_pt, end_pt):
         mid_pt = (start_pt + end_pt) / 2
-        mid_pt.z += 10
+        mid_pt.z += 20
         self.passing_pts = (start_pt, mid_pt, end_pt)
         self.total_dt = 0
 
@@ -62,26 +72,47 @@ class Ball(NodePath):
 
 class BallController:
 
-    def __init__(self, world, walker):
+    def __init__(self, world, walker, terrains):
         self.world = world
         self.walker = walker
+        self.terrains = terrains
         self.ball = Sphere()
+        self.moving_q = deque()
+        self.colors = Colors.all_colors()
 
         self.balls = NodePath('balls')
         self.balls.reparent_to(base.render)
 
-        self.moving_q = deque()
-        self.remove_q = deque()
+    def get_shoot_pos(self, walker_pos):
+        hor_film_size = base.camLens.get_fov()[0]
+        camera_front = int(base.camera.get_h() + hor_film_size)
+        angle_range = (camera_front - 60, camera_front + 60)
+        angle = random.randint(*angle_range)
+
+        # print('angle', angle)
+        x = 100 * round(math.cos(math.radians(angle)), 2)
+        y = 100 * round(math.sin(math.radians(angle)), 2)
+        pt2 = Point2(x, y)
+
+        z = self.terrains.get_terrain_elevaton(pt2)
+        shoot_pos = Point3(pt2 + walker_pos.xy, z + 20)
+        return shoot_pos
+
+    def predict_walker_pos(self, walker_pos):
+        predict_pos = walker_pos + self.walker.get_orientation() * -10 * 0.8
+        # predict_pos.x += random.uniform(-1.0, 1.0)
+        # predict_pos.y += random.uniform(-1.0, 1.0)
+        return predict_pos
 
     def shoot(self):
         if location := self.walker.current_location():
-            start_pt = Point3(-256, 256, 20)
-            end_pt = location.get_hit_pos()
+            walker_pos = location.get_hit_pos()
+            shoot_pos = self.get_shoot_pos(walker_pos)
+            predicted_walker_pos = self.predict_walker_pos(walker_pos)
 
-            end_pt.x += random.uniform(-1.0, 1.0)
-            end_pt.y += random.uniform(-1.0, 1.0)
-
-            ball = Ball(self.ball, LColor(1, 0, 0, 1), start_pt, end_pt)
+            color = random.choice(self.colors)
+            ball = Ball(self.ball, color, shoot_pos, predicted_walker_pos)
+            # ball = Ball(self.ball, color, shoot_pos, walker_pos)
             ball.reparent_to(self.balls)
             self.world.attach(ball.node())
             self.moving_q.append(ball)
@@ -107,43 +138,28 @@ class BallController:
         return Point3(px, py, pz)
 
     def update(self, dt):
-        for _ in range(len(self.remove_q)):
-            ball = self.remove_q.popleft()
-            splash = ball.splash()
-            self.world.remove(ball.node())
-            ball.remove_node()
-            splash.start()
+        for _ in range(len(self.moving_q)):
+            ball = self.moving_q.popleft()
+            next_pt = self.bezier_curve(ball, dt)
 
-        if n := len(self.moving_q):
-            for _ in range(n):
-                ball = self.moving_q.popleft()
-                next_pt = self.bezier_curve(ball, dt)
+            if self.will_collide(ball.get_pos(), next_pt) or ball.total_dt == 1:
+                splash = ball.splash()
+                self.world.remove(ball.node())
+                ball.remove_node()
+                splash.start()
+                continue
 
-                if self.will_collide(ball.get_pos(), next_pt) or ball.total_dt == 1:
-                    self.remove_q.append(ball)
-                else:
-                    self.moving_q.append(ball)
-
-                ball.set_pos(next_pt)
+            ball.set_pos(next_pt)
+            self.moving_q.append(ball)
 
     def will_collide(self, pt_from, pt_to):
         ts_from = TransformState.make_pos(pt_from)
         ts_to = TransformState.make_pos(pt_to)
         test_shape = BulletSphereShape(0.5)
 
-        result = self.world.sweep_test_closest(test_shape, ts_from, ts_to, BitMask32.bit(2), 0.0)
+        # result = self.world.sweep_test_closest(test_shape, ts_from, ts_to, BitMask32.bit(1) | BitMask32.bit(2) | BitMask32.bit(4), 0.0)
+        result = self.world.sweep_test_closest(test_shape, ts_from, ts_to, BitMask32.bit(1) | BitMask32.bit(2), 0.0)
 
         if result.has_hit():
-            print(result.get_node(), result.get_hit_pos())
-            # import pdb; pdb.set_trace()
+            print('ball callid with', result.get_node(), result.get_hit_pos())
             return True
-
-        # print(self.balls.get_children())
-        # for ball in self.root.get_children():
-        #     for contact in set(self.world.contact_test(ball.node(), use_filter=True).get_contacts()):
-        #         print('node0', contact.get_node0().get_name())
-        #         print('node1', contact.get_node1().get_name())
-
-        #     print('-------------------------------')
-        #         # self.world.remove(ball.node())
-        #         # ball.remove_node()

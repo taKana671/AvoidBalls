@@ -1,4 +1,6 @@
+import random
 import sys
+from enum import Enum, auto
 
 from direct.showbase.ShowBase import ShowBase
 from direct.showbase.ShowBaseGlobal import globalClock
@@ -20,6 +22,12 @@ load_prc_file_data("", """
     filled-wireframe-apply-shader true
     stm-max-views 8
     stm-max-chunk-count 2048""")
+
+
+class Status(Enum):
+
+    PLAY = auto()
+    SETUP = auto()
 
 
 class Sample(ShowBase):
@@ -46,8 +54,9 @@ class Sample(ShowBase):
         self.camera.look_at(self.floater)
         self.camLens.set_fov(90)
 
-        self.ball_controller = BallController(self.world, self.walker)
-
+        self.ball_controller = BallController(self.world, self.walker, self.scene.terrains)
+        self.status = Status.SETUP
+        self.timer = 0
 
         # *****when debug***************
         # self.camera.set_pos(0, 0, 30)
@@ -63,11 +72,11 @@ class Sample(ShowBase):
         self.accept('p', self.print_position)
         self.accept('escape', sys.exit)
         self.taskMgr.add(self.update, 'update')
+        self.taskMgr.add(self.ball_controller.update, 'ball_control')
         self.taskMgr.do_method_later(0.2, self.scene.terrains.setup_nature, 'setup_nature')
 
     def print_position(self):
-        # self.scene.terrains.replace_terrain()
-        self.ball_controller.shoot()
+        print(self.camera.get_hpr())
         print(self.walker.get_pos())
 
     def toggle_debug(self):
@@ -77,12 +86,22 @@ class Sample(ShowBase):
             self.debug_np.hide()
 
     def update(self, task):
-        # self.terrain.update()
         dt = globalClock.get_dt()
         self.control_walker(dt)
-        self.ball_controller.update(dt)
         self.control_camera()
 
+        match self.status:
+            case Status.SETUP:
+                if self.scene.is_ready():
+                    print('scene finished nature setup')
+                    self.status = Status.PLAY
+
+            case Status.PLAY:
+                if task.time > self.timer:
+                    self.ball_controller.shoot()
+                    self.timer = task.time + random.randint(1, 10) / 10
+
+                self.ball_controller.update(dt)
         # for t in self.scene.terrain_root.terrains:
         #     t.update()
 
@@ -94,7 +113,8 @@ class Sample(ShowBase):
         result = self.world.ray_test_closest(from_pos, to_pos, BitMask32.bit(1) | BitMask32.bit(2))
         if result.has_hit():
             if result.get_node() != self.walker.node():
-                print(result.get_node())
+                pass
+                # print(result.get_node())
             return result.get_node()
         return None
 

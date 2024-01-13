@@ -8,7 +8,7 @@ from datetime import datetime
 from panda3d.bullet import BulletRigidBodyNode
 from panda3d.bullet import BulletSphereShape, BulletHeightfieldShape, ZUp
 from panda3d.core import NodePath, PandaNode
-from panda3d.core import Vec3, Point3, BitMask32, LColor, Vec2
+from panda3d.core import Vec3, Point3, BitMask32, LColor, Vec2, Point2
 from panda3d.core import Filename
 from panda3d.core import PNMImage
 from panda3d.core import Shader
@@ -164,10 +164,11 @@ class Rocks(NodePath):
 
 class BulletTerrain(NodePath):
 
-    def __init__(self, tile, height):
-        super().__init__(BulletRigidBodyNode('bullet_terrain'))
+    def __init__(self, tile, height, num):
+        super().__init__(BulletRigidBodyNode(f'bullet_terrain_{num}'))
         self.tile = tile
         self.height = height
+        self.done_nature_setup = False
 
         self.set_pos(Point3(self.tile.center, 0))
         self.node().set_mass(0)
@@ -223,6 +224,9 @@ class BulletTerrain(NodePath):
             self.root.set_shader_input(f'tex_ScaleFactor{i}', tex_scale)
             self.root.set_texture(ts, tex)
 
+    def get_terrain_elevaton(self, pt):
+        return self.terrain.get_elevation(*pt) * self.root.get_sz()
+
 
 class TerrainRoot(NodePath):
 
@@ -271,8 +275,8 @@ class TerrainRoot(NodePath):
     def initialize(self, texture_set):
         texture_set = [(tex, scale) for tex, scale in self.load_texture_set(texture_set)]
 
-        for tile in self.heightfield_tiles:
-            bullet_terrain = BulletTerrain(tile, self.height)
+        for i, tile in enumerate(self.heightfield_tiles):
+            bullet_terrain = BulletTerrain(tile, self.height, i)
             bullet_terrain.make_geomip_terrain(texture_set)
             bullet_terrain.reparent_to(self.terrains)
             self.world.attach(bullet_terrain.node())
@@ -281,11 +285,13 @@ class TerrainRoot(NodePath):
     def setup_nature(self, task):
         print(datetime.now())
         for i, terrain in enumerate(self.bullet_terrains):
+            terrain.done_nature_setup = False
             if terrain.tile.count_pixels(0, 100) >= 1000:
                 xy = terrain.tile.center - Vec2(terrain.tile.size / 2)
                 z = terrain.root.get_z() + 2
                 self.water.add_to_terrain(Point3(xy, z))
 
+            # base.taskMgr.add(self.add_nature, f'add_nature_{i}', extraArgs=[iter(terrain.tile)], appendTask=True)
             base.taskMgr.add(self.add_nature, f'add_nature_{i}', extraArgs=[iter(terrain.tile)], appendTask=True)
 
         return task.done
@@ -308,6 +314,9 @@ class TerrainRoot(NodePath):
             x, y, area = next(gen)
         except StopIteration:
             print('nature, end', datetime.now())
+            idx = task.name.split('_')[-1]
+            terrain = self.bullet_terrains[int(idx)]
+            terrain.done_nature_setup = True
             return task.done
 
         x += random.uniform(-10, 10)
@@ -330,3 +339,12 @@ class TerrainRoot(NodePath):
                     self.flowers.add_to_terrain(Grass, pos)
 
         return task.cont
+
+    def get_terrain_elevaton(self, pt):
+        x = -1 if pt.x <= 0 else 1
+        y = -1 if pt.x <= 0 else 1
+
+        for terrain in self.bullet_terrains:
+            if terrain.tile.quadrant == Point2(x, y):
+                z = terrain.get_terrain_elevaton(pt)
+                return z

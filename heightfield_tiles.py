@@ -29,7 +29,7 @@ class Tile:
     def __init__(self, file, quadrant, size):
         self.file = file
         self.center = quadrant * (size / 2)
-        # self.origin = self.center - Vec2(size / 2)
+        self.quadrant = quadrant
         self.size = size
 
     def __iter__(self):

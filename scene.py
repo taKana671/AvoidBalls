@@ -35,3 +35,7 @@ class Scene(NodePath):
         self.ambient_light.reparent_to(self)
         self.directional_light = BasicDayLight()
         self.directional_light.reparent_to(self)
+
+    def is_ready(self):
+        if all(t.done_nature_setup for t in self.terrains.bullet_terrains):
+            return True

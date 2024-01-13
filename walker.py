@@ -35,6 +35,7 @@ class Walker(NodePath):
         self.node().set_ccd_motion_threshold(1e-7)
         self.node().set_ccd_swept_sphere_radius(0.5)
 
+        # self.set_collide_mask(BitMask32.bit(1) | BitMask32.bit(4))
         self.set_collide_mask(BitMask32.bit(1))
         self.set_pos(Point3(-156, -28, 3.95079))
 
@@ -94,13 +95,16 @@ class Walker(NodePath):
             return ray_result
         return None
 
+    def get_orientation(self):
+        return self.direction_nd.get_quat(base.render).get_forward()
+
     def predict_collision(self, next_pos):
         ts_from = TransformState.make_pos(self.get_pos())
         ts_to = TransformState.make_pos(next_pos)
         result = self.world.sweep_test_closest(self.test_shape, ts_from, ts_to, BitMask32.bit(2), 0.0)
         return result.has_hit()
 
-    def update(self, dt, direction, angle):       
+    def update(self, dt, direction, angle):
         if location := self.current_location():
             pos = location.get_hit_pos()
             self.set_z(pos.z + 1.5)
@@ -108,7 +112,7 @@ class Walker(NodePath):
         if angle:
             self.turn(angle)
 
-        orientation = self.direction_nd.get_quat(base.render).get_forward()
+        # orientation = self.direction_nd.get_quat(base.render).get_forward()
         distance = 0
 
         if direction < 0:
@@ -117,7 +121,9 @@ class Walker(NodePath):
             distance = direction * 5 * dt
 
         if distance != 0:
-            next_pos = self.get_pos() + orientation * distance
+            # orientation = self.direction_nd.get_quat(base.render).get_forward()
+            # orientation = self.get_orientation()
+            next_pos = self.get_pos() + self.get_orientation() * distance
             if not self.predict_collision(next_pos):
                 self.set_pos(next_pos)
 
