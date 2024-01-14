@@ -7,9 +7,6 @@ from panda3d.bullet import BulletConvexHullShape
 from geomnode_maker import Sphere
 
 
-# MASK = BitMask32(1) | BitMask32.bit(2)
-
-
 class Natures(NodePath):
 
     mask = BitMask32(1) | BitMask32.bit(2)

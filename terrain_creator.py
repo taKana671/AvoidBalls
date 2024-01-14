@@ -284,6 +284,8 @@ class TerrainRoot(NodePath):
 
     def setup_nature(self, task):
         print(datetime.now())
+        generators = []
+
         for i, terrain in enumerate(self.bullet_terrains):
             terrain.done_nature_setup = False
             if terrain.tile.count_pixels(0, 100) >= 1000:
@@ -291,9 +293,9 @@ class TerrainRoot(NodePath):
                 z = terrain.root.get_z() + 2
                 self.water.add_to_terrain(Point3(xy, z))
 
-            # base.taskMgr.add(self.add_nature, f'add_nature_{i}', extraArgs=[iter(terrain.tile)], appendTask=True)
-            base.taskMgr.add(self.add_nature, f'add_nature_{i}', extraArgs=[iter(terrain.tile)], appendTask=True)
+            generators.append(iter(terrain.tile))
 
+        base.taskMgr.add(self.add_nature, f'add_nature_{i}', extraArgs=[generators], appendTask=True)
         return task.done
 
     def check_position(self, x, y):
@@ -309,15 +311,19 @@ class TerrainRoot(NodePath):
                 return result.get_hit_pos()
         return None
 
-    def add_nature(self, gen, task):
-        try:
-            x, y, area = next(gen)
-        except StopIteration:
-            print('nature, end', datetime.now())
-            idx = task.name.split('_')[-1]
-            terrain = self.bullet_terrains[int(idx)]
-            terrain.done_nature_setup = True
-            return task.done
+    def add_nature(self, genedators, task):
+        for i, gen in enumerate(genedators):
+            try:
+                if gen is not None:
+                    x, y, area = next(gen)
+            except StopIteration:
+                print(f'nature, end {i}', datetime.now())
+                terrain = self.bullet_terrains[i]
+                terrain.done_nature_setup = True
+                genedators[i] = None
+
+                if all(gen is None for gen in genedators):
+                    return task.done
 
         x += random.uniform(-10, 10)
         y += random.uniform(-10, 10)
