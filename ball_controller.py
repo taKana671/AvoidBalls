@@ -9,7 +9,6 @@ from panda3d.core import NodePath, TransformState
 from panda3d.core import BitMask32, LColor, Point3, Vec3, Point2
 from panda3d.bullet import BulletRigidBodyNode, BulletSphereShape
 
-
 from geomnode_maker import Sphere
 
 
@@ -89,7 +88,6 @@ class BallController:
         angle_range = (camera_front - 60, camera_front + 60)
         angle = random.randint(*angle_range)
 
-        # print('angle', angle)
         x = 100 * round(math.cos(math.radians(angle)), 2)
         y = 100 * round(math.sin(math.radians(angle)), 2)
         pt2 = Point2(x, y)
@@ -156,8 +154,6 @@ class BallController:
         ts_from = TransformState.make_pos(pt_from)
         ts_to = TransformState.make_pos(pt_to)
         test_shape = BulletSphereShape(0.5)
-
-        # result = self.world.sweep_test_closest(test_shape, ts_from, ts_to, BitMask32.bit(1) | BitMask32.bit(2) | BitMask32.bit(4), 0.0)
         result = self.world.sweep_test_closest(test_shape, ts_from, ts_to, BitMask32.bit(1) | BitMask32.bit(2), 0.0)
 
         if result.has_hit():

@@ -71,8 +71,8 @@ class Sample(ShowBase):
         self.accept('d', self.toggle_debug)
         self.accept('p', self.print_position)
         self.accept('escape', sys.exit)
+        self.accept('done_setup_nature', self.start_game)
         self.taskMgr.add(self.update, 'update')
-        self.taskMgr.add(self.ball_controller.update, 'ball_control')
         self.taskMgr.do_method_later(0.2, self.scene.terrains.setup_nature, 'setup_nature')
 
     def print_position(self):
@@ -85,16 +85,15 @@ class Sample(ShowBase):
         else:
             self.debug_np.hide()
 
+    def start_game(self):
+        self.status = Status.PLAY
+
     def update(self, task):
         dt = globalClock.get_dt()
         self.control_walker(dt)
         self.control_camera()
 
         match self.status:
-            case Status.SETUP:
-                if self.scene.is_ready():
-                    print('scene finished nature setup')
-                    self.status = Status.PLAY
 
             case Status.PLAY:
                 if task.time > self.timer:

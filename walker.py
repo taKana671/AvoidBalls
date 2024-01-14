@@ -35,7 +35,6 @@ class Walker(NodePath):
         self.node().set_ccd_motion_threshold(1e-7)
         self.node().set_ccd_swept_sphere_radius(0.5)
 
-        # self.set_collide_mask(BitMask32.bit(1) | BitMask32.bit(4))
         self.set_collide_mask(BitMask32.bit(1))
         self.set_pos(Point3(-156, -28, 3.95079))
 
@@ -112,7 +111,6 @@ class Walker(NodePath):
         if angle:
             self.turn(angle)
 
-        # orientation = self.direction_nd.get_quat(base.render).get_forward()
         distance = 0
 
         if direction < 0:
@@ -121,8 +119,6 @@ class Walker(NodePath):
             distance = direction * 5 * dt
 
         if distance != 0:
-            # orientation = self.direction_nd.get_quat(base.render).get_forward()
-            # orientation = self.get_orientation()
             next_pos = self.get_pos() + self.get_orientation() * distance
             if not self.predict_collision(next_pos):
                 self.set_pos(next_pos)

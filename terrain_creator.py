@@ -168,7 +168,6 @@ class BulletTerrain(NodePath):
         super().__init__(BulletRigidBodyNode(f'bullet_terrain_{num}'))
         self.tile = tile
         self.height = height
-        self.done_nature_setup = False
 
         self.set_pos(Point3(self.tile.center, 0))
         self.node().set_mass(0)
@@ -318,11 +317,10 @@ class TerrainRoot(NodePath):
                     x, y, area = next(gen)
             except StopIteration:
                 print(f'nature, end {i}', datetime.now())
-                terrain = self.bullet_terrains[i]
-                terrain.done_nature_setup = True
                 genedators[i] = None
 
                 if all(gen is None for gen in genedators):
+                    base.messenger.send('done_setup_nature')
                     return task.done
 
         x += random.uniform(-10, 10)
