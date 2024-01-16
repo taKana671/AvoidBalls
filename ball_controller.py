@@ -10,6 +10,7 @@ from panda3d.core import BitMask32, LColor, Point3, Vec3, Point2
 from panda3d.bullet import BulletRigidBodyNode, BulletSphereShape
 
 from geomnode_maker import Sphere
+from walker import Status as WalkerStatus
 
 
 class Colors(Enum):
@@ -81,6 +82,7 @@ class BallController:
 
         self.balls = NodePath('balls')
         self.balls.reparent_to(base.render)
+        self.before_pos = None
 
     def get_shoot_pos(self, walker_pos):
         hor_film_size = base.camLens.get_fov()[0]
@@ -97,9 +99,19 @@ class BallController:
         return shoot_pos
 
     def predict_walker_pos(self, walker_pos):
-        predict_pos = walker_pos + self.walker.get_orientation() * -10 * 0.8
-        # predict_pos.x += random.uniform(-1.0, 1.0)
-        # predict_pos.y += random.uniform(-1.0, 1.0)
+        match self.walker.state:
+            case WalkerStatus.FORWARD:
+                predict_pos = walker_pos + self.walker.get_orientation() * -10 * 0.8
+                start, end = -0.1, 0.1
+            case WalkerStatus.BACKWARD:
+                predict_pos = walker_pos + self.walker.get_orientation() * 5 * 0.8
+                start, end = -0.3, 0.3
+            case _:
+                predict_pos = walker_pos
+                start, end = -0.2, 0.2
+
+        predict_pos.x += random.uniform(start, end)
+        predict_pos.y += random.uniform(start, end)
         return predict_pos
 
     def shoot(self):

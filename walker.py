@@ -12,11 +12,11 @@ from utils import create_line_node
 
 class Status(Enum):
 
-    MOVING = auto()
-    GOING_UP = auto()
-    GETTING_OFF = auto()
-    GOING_DOWN = auto()
-    COMMING_TO_EDGE = auto()
+    FORWARD = auto()
+    BACKWARD = auto()
+    LEFT = auto()
+    RIGHT = auto()
+    STANDING = auto()
 
 
 class Walker(NodePath):
@@ -63,7 +63,7 @@ class Walker(NodePath):
         self.under.reparent_to(self.direction_nd)
         self.under.set_pos(0, -1.2, -10)
 
-        self.state = Status.MOVING
+        self.state = None
         self.test_shape = BulletSphereShape(0.5)
 
         # draw ray cast lines for dubug
@@ -123,16 +123,29 @@ class Walker(NodePath):
             if not self.predict_collision(next_pos):
                 self.set_pos(next_pos)
 
+        self.play_anim()
+
     def turn(self, angle):
         self.direction_nd.set_h(self.direction_nd.get_h() + angle)
 
-    def play_anim(self, command, rate=1):
-        if not command:
+    def play_anim(self):
+        match self.state:
+            case Status.FORWARD:
+                anim, rate = Walker.RUN, 1
+            case Status.BACKWARD:
+                anim, rate = Walker.WALK, -1
+            case Status.LEFT | Status.RIGHT:
+                anim, rate = Walker.WALK, 1
+            case _:
+                anim, rate = None, 1
+
+        if not anim:
             self.stop_anim()
-        else:
-            if self.actor.get_current_anim() != command:
-                self.actor.loop(command)
-                self.actor.set_play_rate(rate, command)
+            return
+
+        if self.actor.get_current_anim() != anim:
+            self.actor.loop(anim)
+            self.actor.set_play_rate(rate, anim)
 
     def stop_anim(self):
         if self.actor.get_current_anim() is not None:

@@ -11,6 +11,7 @@ from panda3d.core import BitMask32, LColor, Point3, Quat, Vec3
 from panda3d.core import load_prc_file_data
 
 from walker import Walker
+from walker import Status as WalkingStatus
 from scene import Scene
 from ball_controller import BallController
 
@@ -150,34 +151,24 @@ class Sample(ShowBase):
                 self.camera.look_at(self.floater)
 
     def control_walker(self, dt):
-        # contol walker movement
         direction = 0
         angle = 0
+        self.walker.state = WalkingStatus.STANDING
 
-        if inputState.is_set('forward'):
-            direction += -1
-        if inputState.is_set('backward'):
-            direction += 1
         if inputState.is_set('left'):
+            self.walker.state = WalkingStatus.LEFT
             angle += 100 * dt
         if inputState.is_set('right'):
+            self.walker.state = WalkingStatus.RIGHT
             angle += -100 * dt
+        if inputState.is_set('forward'):
+            self.walker.state = WalkingStatus.FORWARD
+            direction += -1
+        if inputState.is_set('backward'):
+            self.walker.state = WalkingStatus.BACKWARD
+            direction += 1
 
         self.walker.update(dt, direction, angle)
-
-        # play animation
-        anim = None
-        rate = 1
-
-        if inputState.is_set('forward'):
-            anim = self.walker.RUN
-        elif inputState.is_set('backward'):
-            anim, rate = self.walker.WALK, -1
-        elif inputState.is_set('left') or inputState.is_set('right'):
-            anim = self.walker.WALK
-
-        self.walker.play_anim(anim, rate)
-
 
 
 if __name__ == '__main__':
