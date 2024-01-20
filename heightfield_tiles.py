@@ -1,5 +1,5 @@
+import itertools
 from enum import Enum, auto
-from itertools import islice
 
 import pandas as pd
 import numpy as np
@@ -32,15 +32,15 @@ class Tile:
         self.quadrant = quadrant
         self.size = size
 
-    def __iter__(self):
+    def get_generators(self):
         img = cv2.imread(self.file)
         row, col, _ = img.shape
 
-        yield from self.generate(img, 50, Areas.LOWLAND)     # lowground zone
-        yield from self.generate(img, 90, Areas.PLAIN)       # plain
-        yield from self.generate(img, 130, Areas.MOUNTAIN)   # mountain zone
-        yield from self.generate(img, 150, Areas.SUBALPINE)  # subalpine zone
-        yield from self.generate(img, 200, Areas.ALPINE)     # alpine zone
+        yield self.generate(img, 50, Areas.LOWLAND)     # lowground zone
+        yield self.generate(img, 90, Areas.PLAIN)       # plain
+        yield self.generate(img, 130, Areas.MOUNTAIN)   # mountain zone
+        yield self.generate(img, 160, Areas.SUBALPINE)  # subalpine zone
+        yield self.generate(img, 200, Areas.ALPINE)     # alpine zone
 
     def generate(self, img, color, area):
         for x, y in set((x, y) for x, y, _ in zip(*np.where(img == color))):

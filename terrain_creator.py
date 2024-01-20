@@ -2,7 +2,7 @@ import itertools
 import pathlib
 import random
 from enum import Enum, auto
-
+from collections import deque
 from datetime import datetime
 
 from panda3d.bullet import BulletRigidBodyNode
@@ -167,7 +167,7 @@ class BulletTerrain(NodePath):
     def __init__(self, tile, height, num):
         super().__init__(BulletRigidBodyNode(f'bullet_terrain_{num}'))
         self.tile = tile
-        self.height = height
+        self.height = height 
 
         self.set_pos(Point3(self.tile.center, 0))
         self.node().set_mass(0)
@@ -252,6 +252,8 @@ class TerrainRoot(NodePath):
         self.heightfield_tiles = HeightfieldTiles()
         self.initialize(TerrainImages)
 
+        self.natures_q = deque()
+
     def load_texture_set(self, texture_set):
         for item in texture_set:
             tex = base.loader.load_texture(item.path)
@@ -291,8 +293,7 @@ class TerrainRoot(NodePath):
                 xy = terrain.tile.center - Vec2(terrain.tile.size / 2)
                 z = terrain.root.get_z() + 2
                 self.water.add_to_terrain(Point3(xy, z))
-
-            generators.append(iter(terrain.tile))
+            generators.extend([gen for gen in terrain.tile.get_generators()])
 
         base.taskMgr.add(self.add_nature, f'add_nature_{i}', extraArgs=[generators], appendTask=True)
         return task.done
@@ -315,6 +316,21 @@ class TerrainRoot(NodePath):
             try:
                 if gen is not None:
                     x, y, area = next(gen)
+                    x += random.uniform(-10, 10)
+                    y += random.uniform(-10, 10)
+
+                    if pos := self.check_position(x, y):
+                        match area:
+                            case Areas.LOWLAND:
+                                self.rocks.add_to_terrain(Rock, pos)
+                            case Areas.PLAIN:
+                                self.flowers.add_to_terrain(RedFlower, pos)
+                            case Areas.MOUNTAIN:
+                                self.trees.add_to_terrain(PineTree, pos)
+                            case Areas.SUBALPINE:
+                                self.trees.add_to_terrain(FirTree, pos)
+                            case Areas.ALPINE:
+                                self.flowers.add_to_terrain(Grass, pos)
             except StopIteration:
                 print(f'nature, end {i}', datetime.now())
                 genedators[i] = None
@@ -322,25 +338,6 @@ class TerrainRoot(NodePath):
                 if all(gen is None for gen in genedators):
                     base.messenger.send('done_setup_nature')
                     return task.done
-
-        x += random.uniform(-10, 10)
-        y += random.uniform(-10, 10)
-
-        if pos := self.check_position(x, y):
-            # self.debug_line_center = create_line_node(Point3(wx, wy, 30), Point3(wx, wy, -30), LColor(1, 0, 0, 1))
-            # self.debug_line_center.reparent_to(base.render)
-
-            match area:
-                case Areas.LOWLAND:
-                    self.rocks.add_to_terrain(Rock, pos)
-                case Areas.PLAIN:
-                    self.flowers.add_to_terrain(RedFlower, pos)
-                case Areas.MOUNTAIN:
-                    self.trees.add_to_terrain(PineTree, pos)
-                case Areas.SUBALPINE:
-                    self.trees.add_to_terrain(FirTree, pos)
-                case Areas.ALPINE:
-                    self.flowers.add_to_terrain(Grass, pos)
 
         return task.cont
 

@@ -100,7 +100,6 @@ class Sample(ShowBase):
                 if task.time > self.timer:
                     self.ball_controller.shoot()
                     self.timer = task.time + random.randint(1, 10) / 10
-
                 self.ball_controller.update(dt)
         # for t in self.scene.terrain_root.terrains:
         #     t.update()

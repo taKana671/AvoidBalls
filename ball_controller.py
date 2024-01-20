@@ -53,7 +53,7 @@ class Ball(NodePath):
             ball = self.ball.copy_to(parent)
             ball.set_color(color)
             start_scale = random.uniform(0.2, 0.4)
-            end_pt = start_pt + Vec3(random.uniform(-2, 2), random.uniform(-2, 2), random.uniform(1, 4))
+            end_pt = start_pt + Vec3(random.uniform(-2, 2), random.uniform(-2, 2), random.uniform(1.5, 4))
             para = Parallel(
                 ProjectileInterval(ball, duration=0.5, startPos=start_pt, endPos=end_pt, gravityMult=1.0),
                 ball.scaleInterval(0.5, Vec3(0.01), Vec3(start_scale))
@@ -78,6 +78,7 @@ class BallController:
         self.terrains = terrains
         self.ball = Sphere()
         self.moving_q = deque()
+        self.remove_q = deque()
         self.colors = Colors.all_colors()
 
         self.balls = NodePath('balls')
@@ -148,18 +149,23 @@ class BallController:
         return Point3(px, py, pz)
 
     def update(self, dt):
+        for _ in range(len(self.remove_q)):
+            ball = self.remove_q.popleft()
+            splash = ball.splash()
+            self.world.remove(ball.node())
+            ball.remove_node()
+            splash.start()
+
         for _ in range(len(self.moving_q)):
             ball = self.moving_q.popleft()
+            current_pos = ball.get_pos()
             next_pt = self.bezier_curve(ball, dt)
+            ball.set_pos(next_pt)
 
-            if self.will_collide(ball.get_pos(), next_pt) or ball.total_dt == 1:
-                splash = ball.splash()
-                self.world.remove(ball.node())
-                ball.remove_node()
-                splash.start()
+            if self.will_collide(current_pos, next_pt) or ball.total_dt == 1:
+                self.remove_q.append(ball)
                 continue
 
-            ball.set_pos(next_pt)
             self.moving_q.append(ball)
 
     def will_collide(self, pt_from, pt_to):
