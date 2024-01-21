@@ -85,7 +85,11 @@ class BallController:
         self.balls.reparent_to(base.render)
         self.before_pos = None
 
-    def get_shoot_pos(self, walker_pos):
+    def get_shoot_pos(self, walker_pos, name):
+        """Args:
+            walker_pos (point3) position where Ralph is. 
+            name (str) node name of the body on which Ralph steps. 
+        """
         hor_film_size = base.camLens.get_fov()[0]
         camera_front = int(base.camera.get_h() + hor_film_size)
         angle_range = (camera_front - 60, camera_front + 60)
@@ -95,7 +99,7 @@ class BallController:
         y = 100 * round(math.sin(math.radians(angle)), 2)
         pt2 = Point2(x, y)
 
-        z = self.terrains.get_terrain_elevaton(pt2)
+        z = self.terrains.get_terrain_elevaton(pt2, name)
         shoot_pos = Point3(pt2 + walker_pos.xy, z + 20)
         return shoot_pos
 
@@ -118,7 +122,9 @@ class BallController:
     def shoot(self):
         if location := self.walker.current_location():
             walker_pos = location.get_hit_pos()
-            shoot_pos = self.get_shoot_pos(walker_pos)
+            name = location.get_node().name
+
+            shoot_pos = self.get_shoot_pos(walker_pos, name)
             predicted_walker_pos = self.predict_walker_pos(walker_pos)
 
             color = random.choice(self.colors)

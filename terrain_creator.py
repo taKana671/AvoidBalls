@@ -116,9 +116,9 @@ class Flowers(NodePath):
         for np in self.get_children():
             np.remove_node()
 
-    def add_to_terrain(self, model, pos):
+    def add_to_terrain(self, model, pos, terrain_number):
         h = random.choice(self.angles)
-        flower = model(pos, Vec3(h, 0, 0))
+        flower = model(pos, Vec3(h, 0, 0), terrain_number)
         flower.reparent_to(self)
 
 
@@ -134,9 +134,9 @@ class Trees(NodePath):
             self.world.remove(np.node())
             np.remove_node()
 
-    def add_to_terrain(self, model, pos):
+    def add_to_terrain(self, model, pos, terrain_number):
         h = random.choice(self.angles)
-        tree = model(pos, Vec3(h, 0, 0))
+        tree = model(pos, Vec3(h, 0, 0), terrain_number)
         tree.reparent_to(self)
         self.world.attach(tree.node())
 
@@ -153,11 +153,11 @@ class Rocks(NodePath):
             self.world.remove(np.node())
             np.remove_node()
 
-    def add_to_terrain(self, model, pos):
+    def add_to_terrain(self, model, pos, terrain_number):
         hpr = Vec3(*random.sample(self.angles, 3))
         pos -= Vec3(0, 0, 3)
         scale = Vec3(random.randint(1, 5), 3, random.randint(1, 5))  # Vec3(5, 3, 5)
-        rock = model(pos, scale, hpr)
+        rock = model(pos, scale, hpr, terrain_number)
         rock.reparent_to(self)
         self.world.attach(rock.node())
 
@@ -167,7 +167,7 @@ class BulletTerrain(NodePath):
     def __init__(self, tile, height, num):
         super().__init__(BulletRigidBodyNode(f'bullet_terrain_{num}'))
         self.tile = tile
-        self.height = height 
+        self.height = height
 
         self.set_pos(Point3(self.tile.center, 0))
         self.node().set_mass(0)
@@ -308,7 +308,8 @@ class TerrainRoot(NodePath):
         if not self.world.sweep_test_closest(self.test_shape, ts_from, ts_to, BitMask32.bit(2), 0.0).has_hit():
             result = self.world.ray_test_closest(pt_from, pt_to, mask=BitMask32.bit(1))
             if result.has_hit():
-                return result.get_hit_pos()
+                return result
+                # return result.get_hit_pos()
         return None
 
     def add_nature(self, genedators, task):
@@ -319,18 +320,21 @@ class TerrainRoot(NodePath):
                     x += random.uniform(-10, 10)
                     y += random.uniform(-10, 10)
 
-                    if pos := self.check_position(x, y):
+                    if ray_hit := self.check_position(x, y):
+                        pos = ray_hit.get_hit_pos()
+                        terrain_num = ray_hit.get_node().get_name().split('_')[-1]
+
                         match area:
                             case Areas.LOWLAND:
-                                self.rocks.add_to_terrain(Rock, pos)
+                                self.rocks.add_to_terrain(Rock, pos, terrain_num)
                             case Areas.PLAIN:
-                                self.flowers.add_to_terrain(RedFlower, pos)
+                                self.flowers.add_to_terrain(RedFlower, pos, terrain_num)
                             case Areas.MOUNTAIN:
-                                self.trees.add_to_terrain(PineTree, pos)
+                                self.trees.add_to_terrain(PineTree, pos, terrain_num)
                             case Areas.SUBALPINE:
-                                self.trees.add_to_terrain(FirTree, pos)
+                                self.trees.add_to_terrain(FirTree, pos, terrain_num)
                             case Areas.ALPINE:
-                                self.flowers.add_to_terrain(Grass, pos)
+                                self.flowers.add_to_terrain(Grass, pos, terrain_num)
             except StopIteration:
                 print(f'nature, end {i}', datetime.now())
                 genedators[i] = None
@@ -341,11 +345,17 @@ class TerrainRoot(NodePath):
 
         return task.cont
 
-    def get_terrain_elevaton(self, pt):
-        x = -1 if pt.x <= 0 else 1
-        y = -1 if pt.x <= 0 else 1
+    def get_terrain_elevaton(self, pt, name):
+        num = int(name.split('_')[-1])
+        terrain = self.bullet_terrains[num]
+        z = terrain.get_terrain_elevaton(pt)
+        return z
 
-        for terrain in self.bullet_terrains:
-            if terrain.tile.quadrant == Point2(x, y):
-                z = terrain.get_terrain_elevaton(pt)
-                return z
+    # def get_terrain_elevaton(self, pt):
+        # x = -1 if pt.x <= 0 else 1
+        # y = -1 if pt.x <= 0 else 1
+
+        # for terrain in self.bullet_terrains:
+        #     if terrain.tile.quadrant == Point2(x, y):
+        #         z = terrain.get_terrain_elevaton(pt)
+        #         return z

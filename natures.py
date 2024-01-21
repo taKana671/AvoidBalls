@@ -20,8 +20,8 @@ class Natures(NodePath):
 
 class FirTree(Natures):
 
-    def __init__(self, pos, hpr, scale=1.0):
-        super().__init__(BulletRigidBodyNode('fir_tree'), pos, scale, hpr)
+    def __init__(self, pos, hpr, terrain_number, scale=1.0):
+        super().__init__(BulletRigidBodyNode(f'fir_tree_{terrain_number}'), pos, scale, hpr)
         model = base.loader.loadModel('models/firtree/tree1.bam')
         model.set_transform(TransformState.make_pos(Vec3(-0.25, -0.15, 0)))
         model.reparent_to(self)
@@ -35,8 +35,8 @@ class FirTree(Natures):
 
 class PineTree(Natures):
 
-    def __init__(self, pos, hpr, scale=1.0):
-        super().__init__(BulletRigidBodyNode('pine_tree'), pos, scale, hpr)
+    def __init__(self, pos, hpr, terrain_number, scale=1.0):
+        super().__init__(BulletRigidBodyNode(f'pine_tree_{terrain_number}'), pos, scale, hpr)
         model = base.loader.loadModel('models/pinetree/tree2.bam')
         model.set_transform(TransformState.make_pos(Vec3(-0.1, 0.12, 0)))
         model.reparent_to(self)
@@ -50,8 +50,8 @@ class PineTree(Natures):
 
 class PalmTree(Natures):
 
-    def __init__(self, pos, hpr, scale=1.5):
-        super().__init__(BulletRigidBodyNode('pine_tree'), pos, scale, hpr)
+    def __init__(self, pos, hpr, terrain_number, scale=1.5):
+        super().__init__(BulletRigidBodyNode(f'palm_tree_{terrain_number}'), pos, scale, hpr)
         model = base.loader.loadModel('models/palmtree/tree3.bam')
         model.set_transform(TransformState.make_pos(Vec3(-0.5, -0.03, 0)))
         model.reparent_to(self)
@@ -65,8 +65,8 @@ class PalmTree(Natures):
 
 class LeaflessTree(Natures):
 
-    def __init__(self, pos, hpr, scale=0.5):
-        super().__init__(BulletRigidBodyNode('leafless_tree'), pos, scale, hpr)
+    def __init__(self, pos, hpr, terrain_number, scale=0.5):
+        super().__init__(BulletRigidBodyNode(f'leafless_tree_{terrain_number}'), pos, scale, hpr)
         model = base.loader.loadModel('models/plant6/plants6')
         model.set_transform(TransformState.make_pos(Vec3(0, 0, -10)))
         model.reparent_to(self)
@@ -80,8 +80,8 @@ class LeaflessTree(Natures):
 
 class Rock(Natures):
 
-    def __init__(self, pos, scale, hpr):
-        super().__init__(BulletRigidBodyNode('rock'), pos, scale, hpr)
+    def __init__(self, pos, scale, hpr, terrain_number):
+        super().__init__(BulletRigidBodyNode(f'rock_{terrain_number}'), pos, scale, hpr)
         model = Sphere(segments=8)
         tex = base.loader.load_texture('textures/rock1.jpg')
         model.set_texture(tex)
@@ -95,23 +95,23 @@ class Rock(Natures):
 
 class Flower(Natures):
 
-    def __init__(self, pos, hpr, scale=0.004):
-        super().__init__(PandaNode('flower'), pos, scale, hpr)
+    def __init__(self, pos, hpr, terrain_number, scale=0.004):
+        super().__init__(PandaNode(f'flower_{terrain_number}'), pos, scale, hpr)
         model = base.loader.loadModel('models/shrubbery2/shrubbery2')
         model.reparent_to(self)
 
 
 class Grass(Natures):
 
-    def __init__(self, pos, hpr, scale=0.05):
-        super().__init__(PandaNode('flower'), pos, scale, hpr)
+    def __init__(self, pos, hpr, terrain_number, scale=0.05):
+        super().__init__(PandaNode(f'flower_{terrain_number}'), pos, scale, hpr)
         model = base.loader.loadModel('models/shrubbery/shrubbery')
         model.reparent_to(self)
 
 
 class RedFlower(Natures):
 
-    def __init__(self, pos, hpr, scale=3):
-        super().__init__(PandaNode('flower'), pos, scale, hpr)
+    def __init__(self, pos, hpr, terrain_number, scale=3):
+        super().__init__(PandaNode(f'flower_{terrain_number}'), pos, scale, hpr)
         model = base.loader.loadModel('models/tulip/Tulip')
         model.reparent_to(self)

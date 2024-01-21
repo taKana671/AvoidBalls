@@ -36,15 +36,21 @@ class Tile:
         img = cv2.imread(self.file)
         row, col, _ = img.shape
 
-        yield self.generate(img, 50, Areas.LOWLAND)     # lowground zone
-        yield self.generate(img, 90, Areas.PLAIN)       # plain
-        yield self.generate(img, 130, Areas.MOUNTAIN)   # mountain zone
-        yield self.generate(img, 160, Areas.SUBALPINE)  # subalpine zone
-        yield self.generate(img, 200, Areas.ALPINE)     # alpine zone
+        areas = [
+            (50, Areas.LOWLAND),
+            (90, Areas.PLAIN),
+            (140, Areas.MOUNTAIN),
+            (160, Areas.SUBALPINE),
+            (200, Areas.ALPINE)
+        ]
 
-    def generate(self, img, color, area):
+        for color, area in areas:
+            yield self.generate(img[:128, :, :], color, area, 0)
+            yield self.generate(img[128:, :, :], color, area, 128)
+
+    def generate(self, img, color, area, offset_x, offset_y=0):
         for x, y in set((x, y) for x, y, _ in zip(*np.where(img == color))):
-            cx, cy = self.change_pixel_to_cartesian(x, y)
+            cx, cy = self.change_pixel_to_cartesian(x + offset_x, y + offset_y)
             yield cx, cy, area
 
     def count_pixels(self, start, end):

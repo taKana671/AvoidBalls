@@ -36,7 +36,8 @@ class Walker(NodePath):
         self.node().set_ccd_swept_sphere_radius(0.5)
 
         self.set_collide_mask(BitMask32.bit(1))
-        self.set_pos(Point3(-156, -28, 3.95079))
+        # self.set_pos(Point3(-156, -28, 3.95079))
+        self.set_pos(Point3(0, -3, 0))
 
         self.set_scale(0.5)
         self.reparent_to(base.render)
@@ -84,11 +85,11 @@ class Walker(NodePath):
         """
         return self.get_relative_point(self.direction_nd, Vec3(0, 10, 2))
 
-    def current_location(self, mask=BitMask32.all_on()):
+    def current_location(self):
         """Cast a ray vertically from the center of Ralph to return BulletRayHit.
         """
         below = base.render.get_relative_point(self, Vec3(0, 0, -30))
-        ray_result = self.world.ray_test_closest(self.get_pos(), below, mask)
+        ray_result = self.world.ray_test_closest(self.get_pos(), below, BitMask32.bit(1) | BitMask32.bit(2))
 
         if ray_result.has_hit():
             return ray_result

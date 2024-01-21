@@ -31,7 +31,7 @@ class Status(Enum):
     SETUP = auto()
 
 
-class Sample(ShowBase):
+class AvoidBalls(ShowBase):
 
     def __init__(self):
         super().__init__()
@@ -49,6 +49,11 @@ class Sample(ShowBase):
         self.floater = NodePath('floater')
         self.floater.set_z(3.0)
         self.floater.reparent_to(self.walker)
+
+        # self.camera.reparent_to(base.render)
+        # self.camera.set_pos(0, 0, 200)
+        # self.camera.look_at(0, 0, 0)
+        # self.camLens.set_fov(200)
 
         self.camera.reparent_to(self.walker)
         self.camera.set_pos(self.walker.navigate())
@@ -101,6 +106,7 @@ class Sample(ShowBase):
                     self.ball_controller.shoot()
                     self.timer = task.time + random.randint(1, 10) / 10
                 self.ball_controller.update(dt)
+
         # for t in self.scene.terrain_root.terrains:
         #     t.update()
 
@@ -111,8 +117,8 @@ class Sample(ShowBase):
     def ray_cast(self, from_pos, to_pos):
         result = self.world.ray_test_closest(from_pos, to_pos, BitMask32.bit(1) | BitMask32.bit(2))
         if result.has_hit():
-            if result.get_node() != self.walker.node():
-                pass
+            # if result.get_node() != self.walker.node():
+            #     pass
                 # print(result.get_node())
             return result.get_node()
         return None
@@ -171,5 +177,5 @@ class Sample(ShowBase):
 
 
 if __name__ == '__main__':
-    app = Sample()
+    app = AvoidBalls()
     app.run()
