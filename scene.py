@@ -1,7 +1,8 @@
 from panda3d.core import NodePath, PandaNode
 from panda3d.core import Vec3, Point3, LColor
 
-from goal import GoalBanner
+from goal_gate import GoalGate
+
 from terrain_creator import TerrainRoot
 from lights import BasicAmbientLight, BasicDayLight
 
@@ -30,15 +31,12 @@ class Scene(NodePath):
         self.terrains = TerrainRoot(self.world)
         self.terrains.reparent_to(self)
 
-        self.goal = GoalBanner()
-        self.goal.set_pos(0, 0, -13)
-        self.world.attach(self.goal.node())
+        self.goal = GoalGate(self.world, Point3(0, 0, -13), 30)
         self.goal.reparent_to(self)
-
+        base.taskMgr.add(self.goal.sensor.sense, 'check_goal')
 
     def setup_lights(self):
         self.ambient_light = BasicAmbientLight()
         self.ambient_light.reparent_to(self)
         self.directional_light = BasicDayLight()
         self.directional_light.reparent_to(self)
-
