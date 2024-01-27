@@ -79,6 +79,7 @@ class AvoidBalls(ShowBase):
         self.accept('escape', sys.exit)
         self.accept('done_setup_nature', self.start_game)
         self.taskMgr.add(self.update, 'update')
+        self.taskMgr.add(self.scene.goal_gate.check_finish, 'check_finish')
         self.taskMgr.do_method_later(0.2, self.scene.terrains.setup_nature, 'setup_nature')
 
     def print_position(self):

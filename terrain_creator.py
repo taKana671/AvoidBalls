@@ -346,16 +346,11 @@ class TerrainRoot(NodePath):
         return task.cont
 
     def get_terrain_elevaton(self, pt, name):
-        num = int(name.split('_')[-1])
-        terrain = self.bullet_terrains[num]
-        z = terrain.get_terrain_elevaton(pt)
-        return z
-
-    # def get_terrain_elevaton(self, pt):
-        # x = -1 if pt.x <= 0 else 1
-        # y = -1 if pt.x <= 0 else 1
-
-        # for terrain in self.bullet_terrains:
-        #     if terrain.tile.quadrant == Point2(x, y):
-        #         z = terrain.get_terrain_elevaton(pt)
-        #         return z
+        try:
+            num = int(name.split('_')[-1])
+            terrain = self.bullet_terrains[num]
+            z = terrain.get_terrain_elevaton(pt)
+        except ValueError:
+            pass
+        else:
+            return z

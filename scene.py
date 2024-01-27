@@ -31,9 +31,10 @@ class Scene(NodePath):
         self.terrains = TerrainRoot(self.world)
         self.terrains.reparent_to(self)
 
-        self.goal = GoalGate(self.world, Point3(0, 0, -13), 30)
-        self.goal.reparent_to(self)
-        base.taskMgr.add(self.goal.sensor.sense, 'check_goal')
+        self.goal_gate = GoalGate(self.world, Point3(0, 0, -13), 30)
+        self.goal_gate.reparent_to(self)
+        # base.taskMgr.add(self.goal.sensor.sense, 'check_goal')
+        # base.taskMgr.add(self.goal.check_finish, 'check_finish')
 
     def setup_lights(self):
         self.ambient_light = BasicAmbientLight()

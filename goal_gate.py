@@ -20,10 +20,12 @@ class GoalGate(NodePath):
 
         self.create_poles()
         self.create_banner()
-
         self.sensor = Sensor(Point3(0, 0, 1))
         self.world.attach_ghost(self.sensor.node())
         self.sensor.reparent_to(self)
+
+        self.in_pt = None
+        self.out_pt = None
 
     def create_poles(self):
         self.poles = Poles(Point3(-3, 0, 0), Point3(3, 0, 0))
@@ -54,6 +56,55 @@ class GoalGate(NodePath):
         banner = Cloth(info, corner00, corner10, corner01, corner11, resx, resy, fixeds, gendiags)
         self.world.attach_soft_body(banner.node())
         banner.reparent_to(self)
+
+    def check_finish(self, task):
+        if nd := self.sensor.detect():
+            walker_pos = NodePath(nd).get_pos()
+            if not self.in_pt:
+                self.in_pt = walker_pos
+                print('walker is near goal line:', self.in_pt)
+
+            self.out_pt = walker_pos
+            return task.cont
+
+        if self.in_pt:
+            print('walker is away from goal line:', self.out_pt)
+            if self.judge_go_through():
+                print('go throuth!!!!!!!!')
+            self.in_pt = None
+
+        return task.cont
+
+    def check_cross(self, a, b, c, d):
+        min_ab = min(a, b)
+        max_ab = max(a, b)
+
+        min_cd = min(c, d)
+        max_cd = max(c, d)
+
+        if min_ab > max_cd or max_ab < min_cd:
+            return False
+
+        return True
+
+    def judge_go_through(self):
+        pole_l = self.poles.left.get_pos(base.render)
+        pole_r = self.poles.right.get_pos(base.render)
+
+        # check x
+        if not self.check_cross(pole_l.x, pole_r.x, self.in_pt.x, self.out_pt.x):
+            return False
+
+        # check y
+        if not self.check_cross(pole_l.y, pole_r.y, self.in_pt.y, self.out_pt.y):
+            return False
+
+        tc1 = (pole_l.x - pole_r.x) * (self.in_pt.y - pole_l.y) + (pole_l.y - pole_r.y) * (pole_l.x - self.in_pt.x)
+        tc2 = (pole_l.x - pole_r.x) * (self.out_pt.y - pole_l.y) + (pole_l.y - pole_r.y) * (pole_l.x - self.out_pt.x)
+        td1 = (self.in_pt.x - self.out_pt.x) * (pole_l.y - self.in_pt.y) + (self.in_pt.y - self.out_pt.y) * (self.in_pt.x - pole_l.x)
+        td2 = (self.in_pt.x - self.out_pt.x) * (pole_r.y - self.in_pt.y) + (self.in_pt.y - self.out_pt.y) * (self.in_pt.x - pole_r.x)
+
+        return tc1 * tc2 <= 0 and td1 * td2 <= 0
 
 
 class Cloth(NodePath):
@@ -104,13 +155,11 @@ class Sensor(NodePath):
 
     def __init__(self, pos):
         super().__init__(BulletGhostNode('sensor'))
-        shape = BulletBoxShape(Vec3(3, 0.2, 0.5))
+        shape = BulletBoxShape(Vec3(3, 0.125, 0.125))
         self.node().add_shape(shape)
         self.set_collide_mask(BitMask32.bit(4))
         self.set_pos(pos)
 
-    def sense(self, task):
+    def detect(self):
         for nd in self.node().get_overlapping_nodes():
-            print(nd)
-
-        return task.cont
+            return nd
