@@ -2,12 +2,13 @@ import random
 import sys
 from enum import Enum, auto
 
+from direct.gui.DirectGui import OnscreenText
 from direct.showbase.ShowBase import ShowBase
 from direct.showbase.ShowBaseGlobal import globalClock
 from direct.showbase.InputStateGlobal import inputState
-from panda3d.bullet import BulletWorld, BulletDebugNode, BulletRigidBodyNode, BulletSphereShape
-from panda3d.core import NodePath
-from panda3d.core import BitMask32, LColor, Point3, Quat, Vec3
+from panda3d.bullet import BulletWorld, BulletDebugNode
+from panda3d.core import NodePath, TextNode
+from panda3d.core import BitMask32, Point2, Point3, Quat, Vec3
 from panda3d.core import load_prc_file_data
 
 from walker import Walker
@@ -60,7 +61,10 @@ class AvoidBalls(ShowBase):
         self.camera.look_at(self.floater)
         self.camLens.set_fov(90)
 
-        self.ball_controller = BallController(self.world, self.walker, self.scene.terrains)
+        self.socre_display = ScoreDisplays()
+        self.socre_display.show_score()
+        self.ball_controller = BallController(
+            self.world, self.walker, self.scene.terrains, self.socre_display)
         self.status = Status.SETUP
         self.timer = 0
 
@@ -83,7 +87,6 @@ class AvoidBalls(ShowBase):
         self.taskMgr.do_method_later(0.2, self.scene.terrains.setup_nature, 'setup_nature')
 
     def print_position(self):
-        print(self.camera.get_hpr())
         print(self.walker.get_pos())
 
     def toggle_debug(self):
@@ -175,6 +178,41 @@ class AvoidBalls(ShowBase):
             direction += 1
 
         self.walker.update(dt, direction, angle)
+
+
+class ScoreDisplays:
+
+    def __init__(self):
+        font = base.loader.load_font('font/Candaral.ttf')
+        self.avoid = ScoreDisplay(font, Point2(0.05, -0.1), 'avoid:')
+        self.hit = ScoreDisplay(font, Point2(0.17, -0.2), 'hit:')
+        self.avoid_score = 0
+        self.hit_score = 0
+
+    def show_score(self, avoid=0, hit=0):
+        self.avoid.show_score(avoid)
+        self.hit.show_score(hit)
+
+
+class ScoreDisplay(OnscreenText):
+
+    def __init__(self, font, pos, format, scale=0.1, fg=(1, 1, 1, 1), text=''):
+        super().__init__(
+            text=text,
+            parent=base.a2dTopLeft,
+            align=TextNode.ALeft,
+            pos=pos,
+            scale=scale,
+            font=font,
+            fg=fg,
+            mayChange=True
+        )
+        self.score = 0
+        self.fmt = format
+
+    def show_score(self, score):
+        self.score += score
+        self.setText(f'{self.fmt} {self.score}')
 
 
 if __name__ == '__main__':

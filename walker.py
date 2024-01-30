@@ -38,6 +38,7 @@ class Walker(NodePath):
         self.set_collide_mask(BitMask32.bit(1) | BitMask32.bit(4))
         # self.set_pos(Point3(-156, -28, 3.95079))
         self.set_pos(Point3(0, -3, 0))
+        # self.set_pos(Point3(-250, 250, 5))
 
         self.set_scale(0.5)
         self.reparent_to(base.render)

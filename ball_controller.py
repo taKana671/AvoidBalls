@@ -72,10 +72,11 @@ class Ball(NodePath):
 
 class BallController:
 
-    def __init__(self, world, walker, terrains):
+    def __init__(self, world, walker, terrains, display):
         self.world = world
         self.walker = walker
         self.terrains = terrains
+        self.display = display
         self.ball = Sphere()
         self.moving_q = deque()
         self.remove_q = deque()
@@ -87,8 +88,8 @@ class BallController:
 
     def get_shoot_pos(self, walker_pos, name):
         """Args:
-            walker_pos (point3) position where Ralph is. 
-            name (str) node name of the body on which Ralph steps. 
+            walker_pos (point3) position where Ralph is.
+            name (str) node name of the body on which Ralph steps.
         """
         hor_film_size = base.camLens.get_fov()[0]
         camera_front = int(base.camera.get_h() + hor_film_size)
@@ -181,5 +182,9 @@ class BallController:
         result = self.world.sweep_test_closest(test_shape, ts_from, ts_to, BitMask32.bit(1) | BitMask32.bit(2), 0.0)
 
         if result.has_hit():
-            # print('ball callid with', result.get_node(), result.get_hit_pos())
+            if result.get_node() == self.walker.node():
+                self.display.show_score(hit=1)
+            else:
+                self.display.show_score(avoid=1)
+
             return True
