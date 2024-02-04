@@ -16,7 +16,7 @@ from panda3d.core import CardMaker, TextureStage, Texture
 from panda3d.core import TransparencyAttrib, TransformState
 from panda3d.core import GeoMipTerrain
 
-from heightfield_tiles import HeightfieldTiles, Areas
+from heightfield_tiles import Areas, HeightfieldCreator
 from utils import create_line_node
 from natures import Rock, Flower, Grass, LeaflessTree, FirTree, PineTree, PalmTree, RedFlower
 
@@ -191,6 +191,8 @@ class BulletTerrain(NodePath):
         self.terrain.set_heightfield(self.tile.file)
         self.terrain.generate()
 
+        # self.terrain.update()
+
     def make_geomip_terrain(self, texture_set):
         name = pathlib.Path(self.tile.file).stem
         self.terrain = GeoMipTerrain(f'terrain_{name}')
@@ -227,7 +229,7 @@ class BulletTerrain(NodePath):
         return self.terrain.get_elevation(*pt) * self.root.get_sz()
 
 
-class TerrainRoot(NodePath):
+class Terrains(NodePath):
 
     def __init__(self, world):
         super().__init__(PandaNode('terrain_root'))
@@ -249,7 +251,7 @@ class TerrainRoot(NodePath):
         self.test_shape = BulletSphereShape(4)
 
         self.bullet_terrains = []
-        self.heightfield_tiles = HeightfieldTiles()
+        self.heightfield_tiles = HeightfieldCreator()
         self.initialize(TerrainImages)
 
         self.natures_q = deque()
@@ -260,10 +262,11 @@ class TerrainRoot(NodePath):
             yield tex, item.tex_scale
 
     def replace_terrain(self, texture_set=None):
+        self.heightfield_tiles.concat_from_files()
         texture_set = [(tex, scale) for tex, scale in self.load_texture_set(TerrainImages2)]
 
-        for nature in [self.water, self.trees, self.flowers, self.rocks]:
-            nature.remove_from_terrain()
+        # for nature in [self.water, self.trees, self.flowers, self.rocks]:
+        #     nature.remove_from_terrain()
 
         for bullet_terrain in self.bullet_terrains:
             bullet_terrain.replace_heightfield()
@@ -271,9 +274,10 @@ class TerrainRoot(NodePath):
             if texture_set is not None:
                 bullet_terrain.texture_to_terrain(texture_set)
 
-        base.taskMgr.do_method_later(0.2, self.setup_nature, 'setup_nature')
+        # base.taskMgr.do_method_later(0.2, self.setup_nature, 'setup_nature')
 
     def initialize(self, texture_set):
+        self.heightfield_tiles.concat_from_files()
         texture_set = [(tex, scale) for tex, scale in self.load_texture_set(texture_set)]
 
         for i, tile in enumerate(self.heightfield_tiles):
@@ -283,20 +287,19 @@ class TerrainRoot(NodePath):
             self.world.attach(bullet_terrain.node())
             self.bullet_terrains.append(bullet_terrain)
 
-    def setup_nature(self, task):
-        print(datetime.now())
-        generators = []
-
+    def setup_nature(self):
         for i, terrain in enumerate(self.bullet_terrains):
             terrain.done_nature_setup = False
             if terrain.tile.count_pixels(0, 100) >= 1000:
                 xy = terrain.tile.center - Vec2(terrain.tile.size / 2)
                 z = terrain.root.get_z() + 2
                 self.water.add_to_terrain(Point3(xy, z))
-            generators.extend([gen for gen in terrain.tile.get_generators()])
 
-        base.taskMgr.add(self.add_nature, f'add_nature_{i}', extraArgs=[generators], appendTask=True)
-        return task.done
+            self.add_nature(terrain.tile)
+
+    def cleanup_nature(self):
+        for nature in [self.water, self.trees, self.flowers, self.rocks]:
+            nature.remove_from_terrain()
 
     def check_position(self, x, y):
         pt_from = Point3(x, y, 30)
@@ -305,45 +308,34 @@ class TerrainRoot(NodePath):
         ts_from = TransformState.make_pos(pt_from)
         ts_to = TransformState.make_pos(pt_to)
 
-        if not self.world.sweep_test_closest(self.test_shape, ts_from, ts_to, BitMask32.bit(2), 0.0).has_hit():
+        if not self.world.sweep_test_closest(
+                self.test_shape, ts_from, ts_to, BitMask32.bit(2) | BitMask32.bit(5), 0.0).has_hit():
             result = self.world.ray_test_closest(pt_from, pt_to, mask=BitMask32.bit(1))
             if result.has_hit():
                 return result
                 # return result.get_hit_pos()
         return None
 
-    def add_nature(self, genedators, task):
-        for i, gen in enumerate(genedators):
-            try:
-                if gen is not None:
-                    x, y, area = next(gen)
-                    x += random.uniform(-10, 10)
-                    y += random.uniform(-10, 10)
+    def add_nature(self, tile):
+        for x, y, area in tile.get_nature_info():
+            x += random.uniform(-10, 10)
+            y += random.uniform(-10, 10)
 
-                    if ray_hit := self.check_position(x, y):
-                        pos = ray_hit.get_hit_pos()
-                        terrain_num = ray_hit.get_node().get_name().split('_')[-1]
+            if ray_hit := self.check_position(x, y):
+                pos = ray_hit.get_hit_pos()
+                terrain_num = ray_hit.get_node().get_name().split('_')[-1]
 
-                        match area:
-                            case Areas.LOWLAND:
-                                self.rocks.add_to_terrain(Rock, pos, terrain_num)
-                            case Areas.PLAIN:
-                                self.flowers.add_to_terrain(RedFlower, pos, terrain_num)
-                            case Areas.MOUNTAIN:
-                                self.trees.add_to_terrain(PineTree, pos, terrain_num)
-                            case Areas.SUBALPINE:
-                                self.trees.add_to_terrain(FirTree, pos, terrain_num)
-                            case Areas.ALPINE:
-                                self.flowers.add_to_terrain(Grass, pos, terrain_num)
-            except StopIteration:
-                print(f'nature, end {i}', datetime.now())
-                genedators[i] = None
-
-                if all(gen is None for gen in genedators):
-                    base.messenger.send('done_setup_nature')
-                    return task.done
-
-        return task.cont
+                match area:
+                    case Areas.LOWLAND:
+                        self.rocks.add_to_terrain(Rock, pos, terrain_num)
+                    case Areas.PLAIN:
+                        self.flowers.add_to_terrain(RedFlower, pos, terrain_num)
+                    case Areas.MOUNTAIN:
+                        self.trees.add_to_terrain(PineTree, pos, terrain_num)
+                    case Areas.SUBALPINE:
+                        self.trees.add_to_terrain(FirTree, pos, terrain_num)
+                    case Areas.ALPINE:
+                        self.flowers.add_to_terrain(Grass, pos, terrain_num)
 
     def get_terrain_elevaton(self, pt, name):
         try:

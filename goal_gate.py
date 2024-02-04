@@ -20,17 +20,31 @@ class GoalGate(NodePath):
 
         self.create_poles()
         self.create_banner()
+
         self.sensor = Sensor(Point3(0, 0, 1))
         self.world.attach_ghost(self.sensor.node())
         self.sensor.reparent_to(self)
 
+
         self.in_pt = None
         self.out_pt = None
+        self.finish_line = False
 
     def create_poles(self):
         self.poles = Poles(Point3(-3, 0, 0), Point3(3, 0, 0))
         self.world.attach(self.poles.node())
         self.poles.reparent_to(self)
+
+    def create_foundation(self):
+        """Make box shape to prevent for natures, including trees and rocks, 
+           from being positioned around goal gate.
+        """
+        foundation = NodePath(BulletRigidBodyNode('foundation'))
+        shape = BulletBoxShape(Vec3(3, 3, 0.25))
+        foundation.node().add_shape(shape, TransformState.make_pos(Point3(0, 0, 0.25)))
+        foundation.set_collide_mask(BitMask32.bit(5))
+        foundation.reparent_to(self)
+        self.world.attach(foundation.node())
 
     def create_banner(self):
         info = self.world.get_world_info()
@@ -71,6 +85,10 @@ class GoalGate(NodePath):
             print('walker is away from goal line:', self.out_pt)
             if self.judge_go_through():
                 print('go throuth!!!!!!!!')
+                # base.messenger.send('finish')
+                self.finish_line = True
+                return task.done
+
             self.in_pt = None
 
         return task.cont

@@ -182,6 +182,7 @@ class BallController:
         result = self.world.sweep_test_closest(test_shape, ts_from, ts_to, BitMask32.bit(1) | BitMask32.bit(2), 0.0)
 
         if result.has_hit():
+            # print(result.get_node(), result.get_hit_pos())
             if result.get_node() == self.walker.node():
                 self.display.show_score(hit=1)
             else:
