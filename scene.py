@@ -14,6 +14,7 @@ class Status(Enum):
     REPLACE = auto()
     SETUP = auto()
     ARRANGED = auto()
+    CLEANUP = auto()
 
 
 class Sky(NodePath):
@@ -34,14 +35,18 @@ class Scene(NodePath):
         super().__init__(PandaNode('scene'))
         self.world = world
         self.setup_lights()
-
         self.sky = Sky()
         self.sky.reparent_to(self)
 
         self.terrains = Terrains(self.world)
         self.terrains.reparent_to(self)
-        self.setup_goal_gate()
+
+        pos, angle = self.decide_goal_pos()
+        self.goal_gate = GoalGate(self.world, pos, angle)
+        self.goal_gate.reparent_to(self)
+
         self.terrains.setup_nature()
+        self.state = None
 
     def setup_lights(self):
         self.ambient_light = BasicAmbientLight()
@@ -54,7 +59,7 @@ class Scene(NodePath):
         pos = ray_hit.get_hit_pos()
         return pos
 
-    def setup_goal_gate(self):
+    def decide_goal_pos(self):
         candidates = [
             [Point2(230, 230), -45],
             [Point2(-230, -230), 135],
@@ -64,22 +69,47 @@ class Scene(NodePath):
         candidate = random.choice(candidates)
         pt, angle = candidate
         print('goal_gate', pt, angle)
+
         ray_hit = self.terrains.check_position(*pt)
         pos = ray_hit.get_hit_pos()
-        self.goal_gate = GoalGate(self.world, pos, angle)
-        self.goal_gate.reparent_to(self)
+        return pos, angle
+        # self.goal_gate.set_pos(pos)
+        # self.goal_gate.set_h(angle)
+        # self.goal_gate.finish_line = False
+        # self.goal_gate = GoalGate(self.world, pos, angle)
+        # self.goal_gate.reparent_to(self)
 
     def clean_up(self):
-        self.terrains.cleanup_nature()
-        self.goal_gate.detach_node()
+        self.state = Status.CLEANUP
+        # self.terrains.cleanup_nature()
+        # self.goal_gate.detach_node()
 
     def update(self):
         for bullet_terrain in self.terrains.bullet_terrains:
             bullet_terrain.terrain.update()
 
+        match self.state:
+
+            case Status.CLEANUP:
+                self.terrains.cleanup_nature()
+                self.goal_gate.detach_node()
+                # self.goal_gate.finish_line = False
+                self.state = Status.REPLACE
+
+            case Status.REPLACE:
+                self.terrains.replace_terrain()
+                self.state = Status.SETUP
+
+            case Status.SETUP:
+                pos, angle = self.decide_goal_pos()
+                self.goal_gate.set_pos(pos)
+                self.goal_gate.set_h(angle)
+                self.goal_gate.finish_line = False
+                base.taskMgr.add(self.goal_gate.check_finish, 'check_finish')
+
+                self.terrains.setup_nature()
+                self.state = Status.ARRANGED
 
     def change_terrains(self):
-        # folder = self.tile_folders.pop(0)
-        # HeightfieldCreator().concat_from_files(folder.name)
-        self.terrains.replace_terrain()
-        # self.tile_folders.append(folder)
+        if self.state == Status.ARRANGED:
+            return True

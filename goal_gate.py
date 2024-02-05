@@ -25,7 +25,6 @@ class GoalGate(NodePath):
         self.world.attach_ghost(self.sensor.node())
         self.sensor.reparent_to(self)
 
-
         self.in_pt = None
         self.out_pt = None
         self.finish_line = False

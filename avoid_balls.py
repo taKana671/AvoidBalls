@@ -34,7 +34,7 @@ class Status(Enum):
     PLAY = auto()
     SETUP = auto()
     CLEANUP = auto()
-    WAIT = auto()
+    START = auto()
 
 
 class AvoidBalls(ShowBase):
@@ -57,7 +57,7 @@ class AvoidBalls(ShowBase):
         self.floater.reparent_to(self.walker)
 
         pos = self.scene.goal_gate.get_pos(self.render)
-        self.walker.set_pos(pos + Point3(0, 0, 1.5))
+        self.walker.set_pos(pos + Point3(0, 0, 5))
 
         # self.camera.reparent_to(base.render)
         # self.camera.set_pos(0, 0, 200)
@@ -73,7 +73,7 @@ class AvoidBalls(ShowBase):
         self.socre_display.show_score()
         self.ball_controller = BallController(
             self.world, self.walker, self.scene.terrains, self.socre_display)
-        self.state = Status.WAIT
+        self.state = None
         self.timer = 0
         self.switching_screen = SwitchingScreen()
 
@@ -123,7 +123,6 @@ class AvoidBalls(ShowBase):
     def start_game(self, task):
         self.state = Status.PLAY
         return task.done
-
 
     def ray_cast(self, from_pos, to_pos):
         result = self.world.ray_test_closest(from_pos, to_pos, BitMask32.bit(1) | BitMask32.bit(2))
@@ -202,7 +201,7 @@ class AvoidBalls(ShowBase):
 
                 if self.scene.goal_gate.finish_line:
                     self.state = Status.CLEANUP
-                    self.switching_screen.reparent_to(self.render2d)
+                    # self.switching_screen.reparent_to(self.render2d)
                     self.switching_screen.show_screen()
 
             case Status.CLEANUP:
@@ -211,13 +210,13 @@ class AvoidBalls(ShowBase):
                     self.state = Status.SETUP
 
             case Status.SETUP:
-                # import pdb; pdb.set_trace()
-                self.scene.change_terrains()
-                self.card.colorInterval(2.0, (0.95, .95, .95, 0.0), (.95, .95, .95, 1.0)).start()
-                self.state = Status.WAIT
-                # if self.scene.goal_gate.finish_line:
-                #     self.finish()
-                #     self.state = Status.SETUP
+                if self.scene.change_terrains():
+                    self.switching_screen.hide_screen()
+                    self.state = Status.START
+
+            case Status.START:
+                if not self.switching_screen.is_appear:
+                    self.state = Status.PLAY
 
         self.world.do_physics(dt)
         return task.cont
@@ -236,15 +235,17 @@ class SwitchingScreen(NodePath):
         self.is_appear = not self.is_appear
 
     def show_screen(self):
+        self.reparent_to(base.render2d)
         Sequence(
-            self.card.colorInterval(2.0, (.95, .95, .95, 1.0), (.95, .95, .95, 0.0)),
+            self.colorInterval(2.0, (.95, .95, .95, 1.0), (.95, .95, .95, 0.0)),
             Func(lambda: self.change_flag()),
         ).start()
 
     def hide_screen(self):
         Sequence(
-            self.card.colorInterval(2.0, (0.95, .95, .95, 0.0), (.95, .95, .95, 1.0)),
+            self.colorInterval(2.0, (0.95, .95, .95, 0.0), (.95, .95, .95, 1.0)),
             Func(lambda: self.change_flag()),
+            Func(lambda: self.detach_node())
         ).start()
 
 
