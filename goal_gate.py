@@ -12,38 +12,51 @@ from geomnode_maker import Cylinder
 
 class GoalGate(NodePath):
 
-    def __init__(self, world, pos, rotation):
+    def __init__(self, world):
         super().__init__(PandaNode('goal'))
         self.world = world
-        self.set_pos(pos)
-        self.set_h(rotation)
 
         self.create_poles()
+        self.create_sensor()
+        self.create_foundation()
+
+    def setup_gate(self, pos, angle):
+        self.set_h(angle)
+        self.poles.set_pos(base.render, pos)
+        self.sensor.set_pos(base.render, pos + Vec3(0, 0, 1.5))
+        self.foundation.set_pos(base.render, pos)
         self.create_banner()
 
-        self.sensor = Sensor(Point3(0, 0, 1))
-        self.world.attach_ghost(self.sensor.node())
-        self.sensor.reparent_to(self)
+        pole_l = self.poles.left.get_pos(base.render)
+        pole_r = self.poles.right.get_pos(base.render)
+        self.sensor.setup_sensor(pole_l, pole_r)
 
-        self.in_pt = None
-        self.out_pt = None
-        self.finish_line = False
+    def cleanup_gate(self):
+        self.world.remove(self.banner.node())
+        self.banner.remove_node()
 
     def create_poles(self):
         self.poles = Poles(Point3(-3, 0, 0), Point3(3, 0, 0))
-        self.world.attach(self.poles.node())
+        tex = base.loader.load_texture('textures/bark1.jpg')
+        self.poles.set_texture(tex)
         self.poles.reparent_to(self)
+        self.world.attach(self.poles.node())
+
+    def create_sensor(self):
+        self.sensor = Sensor(Point3(0, 0, 3))
+        self.world.attach_ghost(self.sensor.node())
+        self.sensor.reparent_to(self)
 
     def create_foundation(self):
-        """Make box shape to prevent for natures, including trees and rocks, 
+        """Make box shape to prevent for natures, including trees and rocks,
            from being positioned around goal gate.
         """
-        foundation = NodePath(BulletRigidBodyNode('foundation'))
+        self.foundation = NodePath(BulletRigidBodyNode('foundation'))
         shape = BulletBoxShape(Vec3(3, 3, 0.25))
-        foundation.node().add_shape(shape, TransformState.make_pos(Point3(0, 0, 0.25)))
-        foundation.set_collide_mask(BitMask32.bit(5))
-        foundation.reparent_to(self)
-        self.world.attach(foundation.node())
+        self.foundation.node().add_shape(shape, TransformState.make_pos(Point3(0, 0, 0.25)))
+        self.foundation.set_collide_mask(BitMask32.bit(5))
+        self.foundation.reparent_to(self)
+        self.world.attach(self.foundation.node())
 
     def create_banner(self):
         info = self.world.get_world_info()
@@ -66,62 +79,9 @@ class GoalGate(NodePath):
         fixeds = 1 + 2 + 4 + 8
         gendiags = True
 
-        banner = Cloth(info, corner00, corner10, corner01, corner11, resx, resy, fixeds, gendiags)
-        self.world.attach_soft_body(banner.node())
-        banner.reparent_to(self)
-
-    def check_finish(self, task):
-        if nd := self.sensor.detect():
-            walker_pos = NodePath(nd).get_pos()
-            if not self.in_pt:
-                self.in_pt = walker_pos
-                print('walker is near goal line:', self.in_pt)
-
-            self.out_pt = walker_pos
-            return task.cont
-
-        if self.in_pt:
-            print('walker is away from goal line:', self.out_pt)
-            if self.judge_go_through():
-                print('go throuth!!!!!!!!')
-                # base.messenger.send('finish')
-                self.finish_line = True
-                return task.done
-
-            self.in_pt = None
-
-        return task.cont
-
-    def check_cross(self, a, b, c, d):
-        min_ab = min(a, b)
-        max_ab = max(a, b)
-
-        min_cd = min(c, d)
-        max_cd = max(c, d)
-
-        if min_ab > max_cd or max_ab < min_cd:
-            return False
-
-        return True
-
-    def judge_go_through(self):
-        pole_l = self.poles.left.get_pos(base.render)
-        pole_r = self.poles.right.get_pos(base.render)
-
-        # check x
-        if not self.check_cross(pole_l.x, pole_r.x, self.in_pt.x, self.out_pt.x):
-            return False
-
-        # check y
-        if not self.check_cross(pole_l.y, pole_r.y, self.in_pt.y, self.out_pt.y):
-            return False
-
-        tc1 = (pole_l.x - pole_r.x) * (self.in_pt.y - pole_l.y) + (pole_l.y - pole_r.y) * (pole_l.x - self.in_pt.x)
-        tc2 = (pole_l.x - pole_r.x) * (self.out_pt.y - pole_l.y) + (pole_l.y - pole_r.y) * (pole_l.x - self.out_pt.x)
-        td1 = (self.in_pt.x - self.out_pt.x) * (pole_l.y - self.in_pt.y) + (self.in_pt.y - self.out_pt.y) * (self.in_pt.x - pole_l.x)
-        td2 = (self.in_pt.x - self.out_pt.x) * (pole_r.y - self.in_pt.y) + (self.in_pt.y - self.out_pt.y) * (self.in_pt.x - pole_r.x)
-
-        return tc1 * tc2 <= 0 and td1 * td2 <= 0
+        self.banner = Cloth(info, corner00, corner10, corner01, corner11, resx, resy, fixeds, gendiags)
+        self.world.attach(self.banner.node())
+        self.banner.reparent_to(self)
 
 
 class Cloth(NodePath):
@@ -163,8 +123,6 @@ class Poles(NodePath):
         shape = BulletConvexHullShape()
         shape.add_geom(cylinder.node().get_geom(0))
         self.node().add_shape(shape, TransformState.make_pos(pos))
-        tex = base.loader.load_texture('textures/bark1.jpg')
-        cylinder.set_texture(tex)
         return cylinder
 
 
@@ -175,8 +133,69 @@ class Sensor(NodePath):
         shape = BulletBoxShape(Vec3(3, 0.125, 0.125))
         self.node().add_shape(shape)
         self.set_collide_mask(BitMask32.bit(4))
-        self.set_pos(pos)
+
+    def setup_sensor(self, pole_l, pole_r):
+        """Make variables for sensor.
+            Args:
+                pole_l (Point3): the point where the left pole is placed.
+                pole_r (Point3): the point where the right pole is placed.
+        """
+        self.pole_l = pole_l
+        self.pole_r = pole_r
+        self.finish_line = False
+        self.in_pt = None
+        self.out_pt = None
 
     def detect(self):
         for nd in self.node().get_overlapping_nodes():
             return nd
+
+    def check_finish(self, task):
+        if nd := self.detect():
+            walker_pos = NodePath(nd).get_pos()
+            if not self.in_pt:
+                self.in_pt = walker_pos
+                print('walker is near goal line:', self.in_pt)
+
+            self.out_pt = walker_pos
+            return task.cont
+
+        if self.in_pt:
+            print('walker is away from goal line:', self.out_pt)
+            if self.judge_go_through():
+                print('go throuth!!!!!!!!')
+                base.messenger.send('finish')
+                self.finish_line = True
+                return task.done
+
+            self.in_pt = None
+
+        return task.cont
+
+    def check_cross(self, a, b, c, d):
+        min_ab = min(a, b)
+        max_ab = max(a, b)
+
+        min_cd = min(c, d)
+        max_cd = max(c, d)
+
+        if min_ab > max_cd or max_ab < min_cd:
+            return False
+
+        return True
+
+    def judge_go_through(self):
+        # check x
+        if not self.check_cross(self.pole_l.x, self.pole_r.x, self.in_pt.x, self.out_pt.x):
+            return False
+
+        # check y
+        if not self.check_cross(self.pole_l.y, self.pole_r.y, self.in_pt.y, self.out_pt.y):
+            return False
+
+        tc1 = (self.pole_l.x - self.pole_r.x) * (self.in_pt.y - self.pole_l.y) + (self.pole_l.y - self.pole_r.y) * (self.pole_l.x - self.in_pt.x)
+        tc2 = (self.pole_l.x - self.pole_r.x) * (self.out_pt.y - self.pole_l.y) + (self.pole_l.y - self.pole_r.y) * (self.pole_l.x - self.out_pt.x)
+        td1 = (self.in_pt.x - self.out_pt.x) * (self.pole_l.y - self.in_pt.y) + (self.in_pt.y - self.out_pt.y) * (self.in_pt.x - self.pole_l.x)
+        td2 = (self.in_pt.x - self.out_pt.x) * (self.pole_r.y - self.in_pt.y) + (self.in_pt.y - self.out_pt.y) * (self.in_pt.x - self.pole_r.x)
+
+        return tc1 * tc2 <= 0 and td1 * td2 <= 0

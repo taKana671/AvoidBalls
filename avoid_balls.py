@@ -35,6 +35,7 @@ class Status(Enum):
     SETUP = auto()
     CLEANUP = auto()
     START = auto()
+    CHANGE = auto()
 
 
 class AvoidBalls(ShowBase):
@@ -56,8 +57,8 @@ class AvoidBalls(ShowBase):
         self.floater.set_z(3.0)
         self.floater.reparent_to(self.walker)
 
-        pos = self.scene.goal_gate.get_pos(self.render)
-        self.walker.set_pos(pos + Point3(0, 0, 5))
+        pos = self.scene.goal_gate.poles.get_pos(self.render)
+        self.walker.set_pos(pos + Point3(-8, -8, 0))
 
         # self.camera.reparent_to(base.render)
         # self.camera.set_pos(0, 0, 200)
@@ -92,24 +93,10 @@ class AvoidBalls(ShowBase):
         self.accept('escape', sys.exit)
         base.taskMgr.do_method_later(2, self.start_game, 'setup_nature')
         self.taskMgr.add(self.update, 'update')
-        self.taskMgr.add(self.scene.goal_gate.check_finish, 'check_finish')
+        # self.taskMgr.add(self.scene.goal_gate.check_finish, 'check_finish')
 
     def change_state(self):
         self.state = Status.CLEANUP
-
-    # def finish(self):
-    #     self.card = SwitchingScreen()
-    #     self.card.reparent_to(self.render2d)
-    #     # cm = CardMaker('card')
-    #     # cm.set_frame_fullscreen_quad()
-    #     # self.card = self.render2d.attach_new_node(cm.generate())
-    #     # self.card.set_transparency(TransparencyAttrib.MAlpha)
-
-    #     Sequence(
-    #         self.card.colorInterval(2.0, (.95, .95, .95, 1.0), (0.95, .95, .95, 0.0)),
-    #         Func(lambda: self.change_state()),
-    #         self.card.colorInterval(2.0, (0.95, .95, .95, 0.0), (.95, .95, .95, 1.0))
-    #     ).start()
 
     def print_position(self):
         print('walker_pos: ', self.walker.get_pos(), ' camera_pos: ', self.camera.get_pos())
@@ -190,7 +177,6 @@ class AvoidBalls(ShowBase):
         self.control_walker(dt)
         self.control_camera()
         self.ball_controller.update(dt)
-        self.scene.update()
 
         match self.state:
 
@@ -199,20 +185,29 @@ class AvoidBalls(ShowBase):
                     self.ball_controller.shoot()
                     self.timer = task.time + random.randint(1, 10) / 10
 
-                if self.scene.goal_gate.finish_line:
-                    self.state = Status.CLEANUP
-                    # self.switching_screen.reparent_to(self.render2d)
+                if self.scene.goal_gate.sensor.finish_line:
+                    self.switching_screen.reparent_to(self.render2d)
                     self.switching_screen.show_screen()
+                    self.state = Status.CLEANUP
 
             case Status.CLEANUP:
                 if self.switching_screen.is_appear:
-                    self.scene.clean_up()
-                    self.state = Status.SETUP
+                    self.scene.cleanup_scene()
+                    self.state = Status.CHANGE
+
+            case Status.CHANGE:
+                self.scene.change_scene()
+                self.state = Status.SETUP
 
             case Status.SETUP:
-                if self.scene.change_terrains():
-                    self.switching_screen.hide_screen()
-                    self.state = Status.START
+                self.scene.setup_scene()
+                
+                # pos = self.scene.get_pos_on_terrain(230, 230)
+                pos = self.scene.goal_gate.poles.get_pos(base.render)
+                self.walker.set_pos(pos + Point3(-2, -2, 3))
+    
+                self.switching_screen.hide_screen()
+                self.state = Status.START
 
             case Status.START:
                 if not self.switching_screen.is_appear:

@@ -190,14 +190,13 @@ class BulletTerrain(NodePath):
         self.add_terrain_shape()
         self.terrain.set_heightfield(self.tile.file)
         self.terrain.generate()
-
         # self.terrain.update()
 
     def make_geomip_terrain(self, texture_set):
         name = pathlib.Path(self.tile.file).stem
         self.terrain = GeoMipTerrain(f'terrain_{name}')
         self.terrain.set_heightfield(self.tile.file)
-        # terrain.setBruteforce(True)
+        self.terrain.setBruteforce(True)
         self.terrain.set_border_stitching(True)
         # terrain.clear_color_map()
         # block_size 8 and min 2, or block_size 16 and min 3 is good.
@@ -271,6 +270,8 @@ class Terrains(NodePath):
         for bullet_terrain in self.bullet_terrains:
             bullet_terrain.replace_heightfield()
 
+            # bullet_terrain.terrain.update()
+
             if texture_set is not None:
                 bullet_terrain.texture_to_terrain(texture_set)
 
@@ -302,7 +303,7 @@ class Terrains(NodePath):
             nature.remove_from_terrain()
 
     def check_position(self, x, y):
-        pt_from = Point3(x, y, 30)
+        pt_from = Point3(x, y, 60)
         pt_to = Point3(x, y, -30)
 
         ts_from = TransformState.make_pos(pt_from)

@@ -100,8 +100,13 @@ class BallController:
         y = 100 * round(math.sin(math.radians(angle)), 2)
         pt2 = Point2(x, y)
 
-        z = self.terrains.get_terrain_elevaton(pt2, name)
-        shoot_pos = Point3(pt2 + walker_pos.xy, z + 20)
+        try:
+
+            z = self.terrains.get_terrain_elevaton(pt2, name)
+            shoot_pos = Point3(pt2 + walker_pos.xy, z + 20)
+        except TypeError:
+            import pdb; pdb.set_trace()
+        
         return shoot_pos
 
     def predict_walker_pos(self, walker_pos):
@@ -127,10 +132,9 @@ class BallController:
 
             shoot_pos = self.get_shoot_pos(walker_pos, name)
             predicted_walker_pos = self.predict_walker_pos(walker_pos)
-
+            # print('shoot_pos: ', shoot_pos, 'predicted_walker_pos: ', predicted_walker_pos)
             color = random.choice(self.colors)
             ball = Ball(self.ball, color, shoot_pos, predicted_walker_pos)
-            # ball = Ball(self.ball, color, shoot_pos, walker_pos)
             ball.reparent_to(self.balls)
             self.world.attach(ball.node())
             self.moving_q.append(ball)
@@ -182,7 +186,8 @@ class BallController:
         result = self.world.sweep_test_closest(test_shape, ts_from, ts_to, BitMask32.bit(1) | BitMask32.bit(2), 0.0)
 
         if result.has_hit():
-            # print(result.get_node(), result.get_hit_pos())
+            print(result.get_node(), result.get_hit_pos())
+            # print('hit_pos: ', result.get_hit_pos())
             if result.get_node() == self.walker.node():
                 self.display.show_score(hit=1)
             else:
