@@ -1,24 +1,19 @@
-import itertools
 import pathlib
 import random
-from enum import Enum, auto
+from enum import Enum
 from collections import deque
-from datetime import datetime
 
 from panda3d.bullet import BulletRigidBodyNode
 from panda3d.bullet import BulletSphereShape, BulletHeightfieldShape, ZUp
 from panda3d.core import NodePath, PandaNode
-from panda3d.core import Vec3, Point3, BitMask32, LColor, Vec2, Point2
-from panda3d.core import Filename
-from panda3d.core import PNMImage
+from panda3d.core import Vec3, Point3, BitMask32, Vec2
+from panda3d.core import Filename, PNMImage
 from panda3d.core import Shader
-from panda3d.core import CardMaker, TextureStage, Texture
-from panda3d.core import TransparencyAttrib, TransformState
+from panda3d.core import TextureStage, TransformState
 from panda3d.core import GeoMipTerrain
 
 from heightfield_tiles import Areas, HeightfieldCreator
-from utils import create_line_node
-from natures import Rock, Flower, Grass, LeaflessTree, FirTree, PineTree, PalmTree, RedFlower
+from natures import WaterSurface, Rock, Shrubbery, Grass, Fir, Pine
 
 
 class Images(Enum):
@@ -72,94 +67,31 @@ class TerrainImages2(Enum):
         return f'textures/{self.file}'
 
 
-class WaterSurface(NodePath):
+class Natures(NodePath):
 
-    def __init__(self):
-        super().__init__(PandaNode('surface_root'))
-
-    def remove_from_terrain(self):
-        for np in self.get_children():
-            np.remove_node()
-
-    def add_to_terrain(self, pos, size=256):
-        np = NodePath('water_surface')
-        card = CardMaker('card')
-        card.set_frame(0, size, 0, size)
-        surface = np.attach_new_node(card.generate())
-        surface.look_at(Vec3.down())
-        surface.set_transparency(TransparencyAttrib.M_alpha)
-        surface.set_pos(pos)
-
-        tex = base.loader.load_texture(Images.WATER.path)
-        tex.setWrapU(Texture.WMClamp)
-        tex.setWrapV(Texture.WMClamp)
-        surface.set_texture(tex)
-
-        self.set_water_shader(surface)
-        surface.reparent_to(self)
-
-    def set_water_shader(self, surface):
-        shader = Shader.load(Shader.SL_GLSL, 'shaders/water_v.glsl', 'shaders/water_f.glsl')
-        surface.set_shader(shader)
-        surface.set_shader_input('noise', base.loader.loadTexture(Images.NOISE.path))
-        props = base.win.get_properties()
-        surface.set_shader_input('u_resolution', props.get_size())
-
-
-class Flowers(NodePath):
-
-    def __init__(self):
-        super().__init__(PandaNode('flower_root'))
-        self.angles = [n for n in range(0, 360, 10)]
-
-    def remove_from_terrain(self):
-        for np in self.get_children():
-            np.remove_node()
-
-    def add_to_terrain(self, model, pos, terrain_number):
-        h = random.choice(self.angles)
-        flower = model(pos, Vec3(h, 0, 0), terrain_number)
-        flower.reparent_to(self)
-
-
-class Trees(NodePath):
-
-    def __init__(self, world):
-        super().__init__(PandaNode('tree_root'))
+    def __init__(self, name, world):
+        super().__init__(PandaNode(name))
         self.world = world
-        self.angles = [n for n in range(0, 360, 10)]
+
+        self.bullet_nature = NodePath('bullet_nature')
+        self.bullet_nature.reparent_to(self)
+        self.nature = NodePath('nature')
+        self.nature.reparent_to(self)
+
+    def add_to_terrain(self, nature, bullet=False):
+        if bullet:
+            nature.reparent_to(self.bullet_nature)
+            self.world.attach(nature.node())
+        else:
+            nature.reparent_to(self.nature)
 
     def remove_from_terrain(self):
-        for np in self.get_children():
+        for np in self.bullet_nature.get_children():
             self.world.remove(np.node())
             np.remove_node()
 
-    def add_to_terrain(self, model, pos, terrain_number):
-        h = random.choice(self.angles)
-        tree = model(pos, Vec3(h, 0, 0), terrain_number)
-        tree.reparent_to(self)
-        self.world.attach(tree.node())
-
-
-class Rocks(NodePath):
-
-    def __init__(self, world):
-        super().__init__(PandaNode('rock_root'))
-        self.world = world
-        self.angles = [n for n in range(0, 360, 10)]
-
-    def remove_from_terrain(self):
-        for np in self.get_children():
-            self.world.remove(np.node())
+        for np in self.nature.get_children():
             np.remove_node()
-
-    def add_to_terrain(self, model, pos, terrain_number):
-        hpr = Vec3(*random.sample(self.angles, 3))
-        pos -= Vec3(0, 0, 3)
-        scale = Vec3(random.randint(1, 5), 3, random.randint(1, 5))  # Vec3(5, 3, 5)
-        rock = model(pos, scale, hpr, terrain_number)
-        rock.reparent_to(self)
-        self.world.attach(rock.node())
 
 
 class BulletTerrain(NodePath):
@@ -238,14 +170,8 @@ class Terrains(NodePath):
         self.terrains = NodePath('terrains')
         self.terrains.reparent_to(self)
 
-        self.water = WaterSurface()
-        self.water.reparent_to(self)
-        self.flowers = Flowers()
-        self.flowers.reparent_to(self)
-        self.trees = Trees(self.world)
-        self.trees.reparent_to(self)
-        self.rocks = Rocks(self.world)
-        self.rocks.reparent_to(self)
+        self.natures = Natures('natures_root', self.world)
+        self.natures.reparent_to(self)
 
         self.test_shape = BulletSphereShape(4)
 
@@ -263,9 +189,6 @@ class Terrains(NodePath):
     def replace_terrain(self, texture_set=None):
         self.heightfield_tiles.concat_from_files()
         texture_set = [(tex, scale) for tex, scale in self.load_texture_set(TerrainImages2)]
-
-        # for nature in [self.water, self.trees, self.flowers, self.rocks]:
-        #     nature.remove_from_terrain()
 
         for bullet_terrain in self.bullet_terrains:
             bullet_terrain.replace_heightfield()
@@ -294,13 +217,10 @@ class Terrains(NodePath):
             if terrain.tile.count_pixels(0, 100) >= 1000:
                 xy = terrain.tile.center - Vec2(terrain.tile.size / 2)
                 z = terrain.root.get_z() + 2
-                self.water.add_to_terrain(Point3(xy, z))
+                pos = Point3(xy, z)
+                self.natures.add_to_terrain(WaterSurface(pos))
 
             self.add_nature(terrain.tile)
-
-    def cleanup_nature(self):
-        for nature in [self.water, self.trees, self.flowers, self.rocks]:
-            nature.remove_from_terrain()
 
     def check_position(self, x, y):
         pt_from = Point3(x, y, 60)
@@ -328,15 +248,15 @@ class Terrains(NodePath):
 
                 match area:
                     case Areas.LOWLAND:
-                        self.rocks.add_to_terrain(Rock, pos, terrain_num)
+                        self.natures.add_to_terrain(Rock(terrain_num, pos), True)
                     case Areas.PLAIN:
-                        self.flowers.add_to_terrain(RedFlower, pos, terrain_num)
+                        self.natures.add_to_terrain(Shrubbery(terrain_num, pos))
                     case Areas.MOUNTAIN:
-                        self.trees.add_to_terrain(PineTree, pos, terrain_num)
+                        self.natures.add_to_terrain(Pine(terrain_num, pos), True)
                     case Areas.SUBALPINE:
-                        self.trees.add_to_terrain(FirTree, pos, terrain_num)
+                        self.natures.add_to_terrain(Fir(terrain_num, pos), True)
                     case Areas.ALPINE:
-                        self.flowers.add_to_terrain(Grass, pos, terrain_num)
+                        self.natures.add_to_terrain(Grass(terrain_num, pos))
 
     def get_terrain_elevaton(self, pt, name):
         try:

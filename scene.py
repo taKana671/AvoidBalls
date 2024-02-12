@@ -49,7 +49,7 @@ class Scene(NodePath):
         base.taskMgr.add(self.goal_gate.sensor.check_finish, 'check_finish')
 
     def cleanup_scene(self):
-        self.terrains.cleanup_nature()
+        self.terrains.natures.remove_from_terrain()
         self.goal_gate.cleanup_gate()
 
     def get_pos_on_terrain(self, x, y):

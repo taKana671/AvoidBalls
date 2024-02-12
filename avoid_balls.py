@@ -8,17 +8,16 @@ from direct.showbase.ShowBaseGlobal import globalClock
 from direct.showbase.InputStateGlobal import inputState
 from panda3d.bullet import BulletWorld, BulletDebugNode
 from panda3d.core import NodePath, TextNode
-from panda3d.core import BitMask32, Point2, Point3, Quat, Vec3
+from panda3d.core import BitMask32, Point2, Point3, Quat, Vec3, CardMaker
+from panda3d.core import TransparencyAttrib
 from panda3d.core import load_prc_file_data
+from direct.interval.IntervalGlobal import Sequence, Func
 
 from walker import Walker
 from walker import Status as WalkingStatus
 from scene import Scene
 from ball_controller import BallController
 
-from panda3d.core import CardMaker, TransparencyAttrib, Shader, Texture, SamplerState
-
-from direct.interval.IntervalGlobal import Sequence, Func
 
 load_prc_file_data("", """
     textures-power-2 none
@@ -201,11 +200,11 @@ class AvoidBalls(ShowBase):
 
             case Status.SETUP:
                 self.scene.setup_scene()
-                
+
                 # pos = self.scene.get_pos_on_terrain(230, 230)
                 pos = self.scene.goal_gate.poles.get_pos(base.render)
                 self.walker.set_pos(pos + Point3(-2, -2, 3))
-    
+
                 self.switching_screen.hide_screen()
                 self.state = Status.START
 
