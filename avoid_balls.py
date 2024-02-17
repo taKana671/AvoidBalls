@@ -8,7 +8,7 @@ from direct.showbase.ShowBaseGlobal import globalClock
 from direct.showbase.InputStateGlobal import inputState
 from panda3d.bullet import BulletWorld, BulletDebugNode
 from panda3d.core import NodePath, TextNode
-from panda3d.core import BitMask32, Point2, Point3, Quat, Vec3, CardMaker
+from panda3d.core import BitMask32, Point2, Point3, Quat, Vec3, LColor, CardMaker
 from panda3d.core import TransparencyAttrib
 from panda3d.core import load_prc_file_data
 from direct.interval.IntervalGlobal import Sequence, Func
@@ -56,8 +56,9 @@ class AvoidBalls(ShowBase):
         self.floater.set_z(3.0)
         self.floater.reparent_to(self.walker)
 
-        pos = self.scene.goal_gate.poles.get_pos(self.render)
-        self.walker.set_pos(pos + Point3(-8, -8, 0))
+        # pos = self.scene.goal_gate.poles.get_pos(self.render)
+        pos = self.scene.get_pos_on_terrain(0, 0)
+        self.walker.set_pos(pos + Point3(-2, -2, 0))
 
         # self.camera.reparent_to(base.render)
         # self.camera.set_pos(0, 0, 200)
@@ -71,11 +72,11 @@ class AvoidBalls(ShowBase):
 
         self.socre_display = ScoreDisplays()
         self.socre_display.show_score()
-        self.ball_controller = BallController(
-            self.world, self.walker, self.scene.terrains, self.socre_display)
-        self.state = None
+        self.ball_controller = BallController(self.world, self.walker, self.socre_display)
         self.timer = 0
-        self.switching_screen = SwitchingScreen()
+        self.screen = Screen()
+        self.screen.show_title_screen()
+        # self.screen.show_white_screen()
 
         # *****when debug***************
         # self.camera.set_pos(0, 0, 30)
@@ -90,9 +91,11 @@ class AvoidBalls(ShowBase):
         self.accept('d', self.toggle_debug)
         self.accept('p', self.print_position)
         self.accept('escape', sys.exit)
-        base.taskMgr.do_method_later(2, self.start_game, 'setup_nature')
+        # base.taskMgr.do_method_later(2, self.start_game, 'setup_nature')
         self.taskMgr.add(self.update, 'update')
+        base.taskMgr.do_method_later(2, self.screen.hide_title_screen, 'hide_title_screen')
         # self.taskMgr.add(self.scene.goal_gate.check_finish, 'check_finish')
+        self.state = Status.START
 
     def change_state(self):
         self.state = Status.CLEANUP
@@ -152,24 +155,18 @@ class AvoidBalls(ShowBase):
                 self.camera.look_at(self.floater)
 
     def control_walker(self, dt):
-        direction = 0
-        angle = 0
-        self.walker.state = WalkingStatus.STANDING
+        self.walker.state = None
 
-        if inputState.is_set('left'):
-            self.walker.state = WalkingStatus.LEFT
-            angle += 100 * dt
-        if inputState.is_set('right'):
-            self.walker.state = WalkingStatus.RIGHT
-            angle += -100 * dt
         if inputState.is_set('forward'):
             self.walker.state = WalkingStatus.FORWARD
-            direction += -1
         if inputState.is_set('backward'):
             self.walker.state = WalkingStatus.BACKWARD
-            direction += 1
+        if inputState.is_set('left'):
+            self.walker.state = WalkingStatus.LEFT
+        if inputState.is_set('right'):
+            self.walker.state = WalkingStatus.RIGHT
 
-        self.walker.update(dt, direction, angle)
+        self.walker.update(dt)
 
     def update(self, task):
         dt = globalClock.get_dt()
@@ -185,12 +182,12 @@ class AvoidBalls(ShowBase):
                     self.timer = task.time + random.randint(1, 10) / 10
 
                 if self.scene.goal_gate.sensor.finish_line:
-                    self.switching_screen.reparent_to(self.render2d)
-                    self.switching_screen.show_screen()
+                    # self.screen.reparent_to(self.render2d)
+                    self.screen.show_white_screen()
                     self.state = Status.CLEANUP
 
             case Status.CLEANUP:
-                if self.switching_screen.is_appear:
+                if self.screen.is_appear:
                     self.scene.cleanup_scene()
                     self.state = Status.CHANGE
 
@@ -205,18 +202,18 @@ class AvoidBalls(ShowBase):
                 pos = self.scene.goal_gate.poles.get_pos(base.render)
                 self.walker.set_pos(pos + Point3(-2, -2, 3))
 
-                self.switching_screen.hide_screen()
+                self.screen.hide_screen()
                 self.state = Status.START
 
             case Status.START:
-                if not self.switching_screen.is_appear:
+                if not self.screen.is_appear:
                     self.state = Status.PLAY
 
         self.world.do_physics(dt)
         return task.cont
 
 
-class SwitchingScreen(NodePath):
+class Screen(NodePath):
 
     def __init__(self):
         cm = CardMaker('card')
@@ -224,23 +221,48 @@ class SwitchingScreen(NodePath):
         super().__init__(cm.generate())
         self.set_transparency(TransparencyAttrib.MAlpha)
         self.is_appear = False
+        self.reparent_to(base.render2d)
+        self.transparent = LColor(.96, .96, .96, .0)
+        self.white_smoke = LColor(.96, .96, .96, 1.0)
+        self.gray = LColor(.5, .5, .5, 1.0)
 
     def change_flag(self):
         self.is_appear = not self.is_appear
 
-    def show_screen(self):
+    def show_white_screen(self):
         self.reparent_to(base.render2d)
         Sequence(
-            self.colorInterval(2.0, (.95, .95, .95, 1.0), (.95, .95, .95, 0.0)),
+            self.colorInterval(2.0, self.white_smoke, self.transparent),
             Func(lambda: self.change_flag()),
         ).start()
 
     def hide_screen(self):
         Sequence(
-            self.colorInterval(2.0, (0.95, .95, .95, 0.0), (.95, .95, .95, 1.0)),
+            self.colorInterval(2.0, self.transparent, self.white_smoke),
             Func(lambda: self.change_flag()),
             Func(lambda: self.detach_node())
         ).start()
+
+    def show_title_screen(self):
+        self.change_flag()
+        self.set_color(self.white_smoke)
+        self.reparent_to(base.render2d)
+        self.title = OnscreenText(
+            text='Avoid Balls',
+            parent=base.aspect2d,
+            align=TextNode.ACenter,
+            font=base.loader.load_font('font/Candaral.ttf'),
+            scale=0.2,
+            fg=self.gray,
+            pos=(0, 0)
+        )
+
+    def hide_title_screen(self, task):
+        Sequence(
+            self.title.colorScaleInterval(1.0, LColor(.5, .5, .5, .0), blendType='easeInOut'),
+            Func(self.hide_screen)
+        ).start()
+        return task.done
 
 
 class ScoreDisplays:

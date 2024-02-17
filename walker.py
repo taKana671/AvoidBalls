@@ -16,7 +16,6 @@ class Status(Enum):
     BACKWARD = auto()
     LEFT = auto()
     RIGHT = auto()
-    STANDING = auto()
 
 
 class Walker(NodePath):
@@ -86,14 +85,15 @@ class Walker(NodePath):
         """
         return self.get_relative_point(self.direction_nd, Vec3(0, 10, 2))
 
-    def current_location(self):
-        """Cast a ray vertically from the center of Ralph to return BulletRayHit.
-        """
-        below = base.render.get_relative_point(self, Vec3(0, 0, -30))
-        ray_result = self.world.ray_test_closest(self.get_pos(), below, BitMask32.bit(1) | BitMask32.bit(2))
+    def get_terrain_contact_pos(self, pos=None):
+        if not pos:
+            pos = self.get_pos()
+
+        below = pos - Vec3(0, 0, 30)
+        ray_result = self.world.ray_test_closest(pos, below, BitMask32.bit(1) | BitMask32.bit(2))
 
         if ray_result.has_hit():
-            return ray_result
+            return ray_result.get_hit_pos()
         return None
 
     def get_orientation(self):
@@ -105,10 +105,18 @@ class Walker(NodePath):
         result = self.world.sweep_test_closest(self.test_shape, ts_from, ts_to, BitMask32.bit(2), 0.0)
         return result.has_hit()
 
-    def update(self, dt, direction, angle):
-        if location := self.current_location():
-            pos = location.get_hit_pos()
-            self.set_z(pos.z + 1.5)
+    def update(self, dt):
+        direction = 0
+        angle = 0
+
+        if self.state == Status.FORWARD:
+            direction += -1
+        if self.state == Status.BACKWARD:
+            direction += 1
+        if self.state == Status.LEFT:
+            angle += 100 * dt
+        if self.state == Status.RIGHT:
+            angle -= 100 * dt
 
         if angle:
             self.turn(angle)
@@ -121,29 +129,35 @@ class Walker(NodePath):
             distance = direction * 5 * dt
 
         if distance != 0:
-            next_pos = self.get_pos() + self.get_orientation() * distance
-            if not self.predict_collision(next_pos):
-                self.set_pos(next_pos)
+            self.move(distance)
 
         self.play_anim()
 
     def turn(self, angle):
         self.direction_nd.set_h(self.direction_nd.get_h() + angle)
 
+    def move(self, distance):
+        temp_pos = self.get_pos() + self.get_orientation() * distance
+
+        if contact_pos := self.get_terrain_contact_pos(temp_pos):
+            next_pos = contact_pos + Vec3(0, 0, 1.5)
+            if not self.predict_collision(next_pos):
+                self.set_pos(next_pos)
+
     def play_anim(self):
         match self.state:
             case Status.FORWARD:
-                anim, rate = Walker.RUN, 1
+                anim = Walker.RUN
+                rate = 1
             case Status.BACKWARD:
-                anim, rate = Walker.WALK, -1
+                anim = Walker.WALK
+                rate = -1
             case Status.LEFT | Status.RIGHT:
-                anim, rate = Walker.WALK, 1
+                anim = Walker.WALK
+                rate = 1
             case _:
-                anim, rate = None, 1
-
-        if not anim:
-            self.stop_anim()
-            return
+                self.stop_anim()
+                return
 
         if self.actor.get_current_anim() != anim:
             self.actor.loop(anim)

@@ -1,7 +1,7 @@
 import random
 
 from panda3d.core import NodePath, PandaNode
-from panda3d.core import Point2, LColor
+from panda3d.core import Point2, LColor, Point3, BitMask32
 
 from goal_gate import GoalGate
 from terrain_creator import Terrains
@@ -53,9 +53,10 @@ class Scene(NodePath):
         self.goal_gate.cleanup_gate()
 
     def get_pos_on_terrain(self, x, y):
-        ray_hit = self.terrains.check_position(x, y)
-        pos = ray_hit.get_hit_pos()
-        return pos
+        hit = self.world.ray_test_closest(
+            Point3(x, y, 30), Point3(x, y, -30), mask=BitMask32.bit(1)
+        )
+        return hit.get_hit_pos()
 
     def decide_goal_pos(self):
         candidates = [
@@ -65,6 +66,8 @@ class Scene(NodePath):
             [Point2(-230, 230), 45],
         ]
         pt, angle = random.choice(candidates)
+        # Do not use self.terrans.check_position to avoid error
+        # that occurs when the pt is the same with current pos
         pos = self.get_pos_on_terrain(*pt)
         return pos, angle
 

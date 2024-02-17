@@ -223,7 +223,7 @@ class Terrains(NodePath):
             self.add_nature(terrain.tile)
 
     def check_position(self, x, y):
-        pt_from = Point3(x, y, 60)
+        pt_from = Point3(x, y, 30)
         pt_to = Point3(x, y, -30)
 
         ts_from = TransformState.make_pos(pt_from)
@@ -237,7 +237,7 @@ class Terrains(NodePath):
                 # return result.get_hit_pos()
         return None
 
-    def add_nature(self, tile):
+    def add_nature(self, tile): 
         for x, y, area in tile.get_nature_info():
             x += random.uniform(-10, 10)
             y += random.uniform(-10, 10)
@@ -259,11 +259,6 @@ class Terrains(NodePath):
                         self.natures.add_to_terrain(Grass(terrain_num, pos))
 
     def get_terrain_elevaton(self, pt, name):
-        try:
-            num = int(name.split('_')[-1])
-            terrain = self.bullet_terrains[num]
-            z = terrain.get_terrain_elevaton(pt)
-        except ValueError:
-            pass
-        else:
-            return z
+        num = int(name.split('_')[-1])
+        terrain = self.bullet_terrains[num]
+        z = terrain.get_terrain_elevaton(pt)
