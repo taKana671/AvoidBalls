@@ -13,7 +13,7 @@ from panda3d.core import TransparencyAttrib
 from panda3d.core import load_prc_file_data
 from direct.interval.IntervalGlobal import Sequence, Func
 
-from walker import Walker, Motion
+from walker import Walker, Motions
 from scene import Scene
 from ball_controller import BallController
 
@@ -55,14 +55,13 @@ class AvoidBalls(ShowBase):
         self.floater.set_z(3.0)
         self.floater.reparent_to(self.walker)
 
-        # pos = self.scene.goal_gate.poles.get_pos(self.render)
-        pos = self.scene.get_pos_on_terrain(0, 0)
-        self.walker.set_pos(pos + Point3(-2, -2, 0))
-
-        # self.camera.reparent_to(base.render)
-        # self.camera.set_pos(0, 0, 200)
-        # self.camera.look_at(0, 0, 0)
-        # self.camLens.set_fov(200)
+        # pos = self.scene.get_pos_on_terrain(0, 0)
+        # self.walker.set_pos(pos + Point3(0, 0, 1.2))
+        # import pdb; pdb.set_trace()
+        pos = self.walker.get_terrain_contact_pos(Point3(0, 0, 10))
+        # print(pos)
+        self.walker.set_pos(pos)
+        # import pdb; pdb.set_trace()
 
         self.camera.reparent_to(self.walker)
         self.camera.set_pos(self.walker.navigate())
@@ -75,7 +74,6 @@ class AvoidBalls(ShowBase):
         self.timer = 0
         self.screen = Screen()
         self.screen.show_title_screen()
-        # self.screen.show_white_screen()
 
         # *****when debug***************
         # self.camera.set_pos(0, 0, 30)
@@ -157,13 +155,13 @@ class AvoidBalls(ShowBase):
         motions = []
 
         if inputState.is_set('forward'):
-            motions.append(Motion.FORWARD)
+            motions.append(Motions.FORWARD)
         if inputState.is_set('backward'):
-            motions.append(Motion.BACKWARD)
+            motions.append(Motions.BACKWARD)
         if inputState.is_set('left'):
-            motions.append(Motion.LEFT)
+            motions.append(Motions.LEFT)
         if inputState.is_set('right'):
-            motions.append(Motion.RIGHT)
+            motions.append(Motions.RIGHT)
 
         self.walker.update(dt, motions)
 

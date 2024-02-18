@@ -1,16 +1,14 @@
 from enum import Enum, auto
 
 from direct.actor.Actor import Actor
-from panda3d.bullet import BulletCapsuleShape, BulletCylinderShape, ZUp
+from panda3d.bullet import BulletCapsuleShape, ZUp
 from panda3d.bullet import BulletSphereShape
 from panda3d.bullet import BulletRigidBodyNode
 from panda3d.core import PandaNode, NodePath, TransformState
-from panda3d.core import Vec3, Point3, LColor, BitMask32
-
-from utils import create_line_node
+from panda3d.core import Vec3, BitMask32
 
 
-class Motion(Enum):
+class Motions(Enum):
 
     FORWARD = auto()
     BACKWARD = auto()
@@ -27,6 +25,7 @@ class Walker(NodePath):
     def __init__(self, world):
         super().__init__(BulletRigidBodyNode('wolker'))
         self.world = world
+        self.test_shape = BulletSphereShape(0.5)
 
         h, w = 6, 1.2
         shape = BulletCapsuleShape(w, h - 2 * w, ZUp)
@@ -36,10 +35,6 @@ class Walker(NodePath):
         self.node().set_ccd_swept_sphere_radius(0.5)
 
         self.set_collide_mask(BitMask32.bit(1) | BitMask32.bit(4))
-        # self.set_pos(Point3(-156, -28, 3.95079))
-        # self.set_pos(Point3(0, -3, 2))
-        # self.set_pos(Point3(230, 225, 10))
-
         self.set_scale(0.5)
         self.reparent_to(base.render)
         self.world.attach(self.node())
@@ -57,28 +52,6 @@ class Walker(NodePath):
         self.actor.set_name('ralph')
         self.actor.reparent_to(self.direction_nd)
 
-        self.front = NodePath('front')
-        self.front.reparent_to(self.direction_nd)
-        self.front.set_pos(0, -1.2, 1)
-
-        self.under = NodePath('under')
-        self.under.reparent_to(self.direction_nd)
-        self.under.set_pos(0, -1.2, -10)
-
-        self.test_shape = BulletSphereShape(0.5)
-
-        # draw ray cast lines for dubug
-        self.debug_line_front = create_line_node(self.front.get_pos(), self.under.get_pos(), LColor(0, 0, 1, 1))
-        self.debug_line_center = create_line_node(Point3(0, 0, 0), Point3(0, 0, -10), LColor(1, 0, 0, 1))
-
-    def toggle_debug(self):
-        if self.debug_line_front.has_parent():
-            self.debug_line_front.detach_node()
-            self.debug_line_center.detach_node()
-        else:
-            self.debug_line_front.reparent_to(self.direction_nd)
-            self.debug_line_center.reparent_to(self.direction_nd)
-
     def navigate(self):
         """Return a relative point to enable camera to follow a character
            when camera's view is blocked by an object like walls.
@@ -90,10 +63,12 @@ class Walker(NodePath):
             pos = self.get_pos()
 
         below = pos - Vec3(0, 0, 30)
-        ray_result = self.world.ray_test_closest(pos, below, BitMask32.bit(1) | BitMask32.bit(2))
+        if (hit := self.world.ray_test_closest(
+                pos, below, BitMask32.bit(1) | BitMask32.bit(2))).has_hit():
+            return hit.get_hit_pos()
 
-        if ray_result.has_hit():
-            return ray_result.get_hit_pos()
+        # if ray_result.has_hit():
+        #     return ray_result.get_hit_pos()
         return None
 
     def get_orientation(self):
@@ -108,20 +83,20 @@ class Walker(NodePath):
     def update(self, dt, motions):
         direction = 0
         angle = 0
-        anim = None
+        self.motion = None
 
-        if Motion.LEFT in motions:
+        if Motions.LEFT in motions:
             angle += 100 * dt
-            anim = Motion.TURN
-        if Motion.RIGHT in motions:
+            self.motion = Motions.TURN
+        if Motions.RIGHT in motions:
             angle -= 100 * dt
-            anim = Motion.TURN
-        if Motion.FORWARD in motions:
+            self.motion = Motions.TURN
+        if Motions.FORWARD in motions:
             direction += -1
-            anim = Motion.FORWARD
-        if Motion.BACKWARD in motions:
+            self.motion = Motions.FORWARD
+        if Motions.BACKWARD in motions:
             direction += 1
-            anim = Motion.BACKWARD
+            self.motion = Motions.BACKWARD
 
         if angle:
             self.turn(angle)
@@ -136,7 +111,7 @@ class Walker(NodePath):
         if distance != 0:
             self.move(distance)
 
-        self.play_anim(anim)
+        self.play_anim()
 
     def turn(self, angle):
         self.direction_nd.set_h(self.direction_nd.get_h() + angle)
@@ -149,21 +124,21 @@ class Walker(NodePath):
             if not self.predict_collision(next_pos):
                 self.set_pos(next_pos)
 
-    def play_anim(self, anim):
-        match anim:
-            case Motion.FORWARD:
+    def play_anim(self):
+        match self.motion:
+            case Motions.FORWARD:
                 anim = Walker.RUN
                 rate = 1
-            case Motion.BACKWARD:
+            case Motions.BACKWARD:
                 anim = Walker.WALK
                 rate = -1
-            case Motion.TURN:
+            case Motions.TURN:
                 anim = Walker.WALK
                 rate = 1
             case _:
                 if self.actor.get_current_anim() is not None:
                     self.actor.stop()
-                    self.actor.pose(self.WALK, 5)
+                    self.actor.pose(Walker.WALK, 5)
                 return
 
         if self.actor.get_current_anim() != anim:

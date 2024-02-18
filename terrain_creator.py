@@ -237,7 +237,7 @@ class Terrains(NodePath):
                 # return result.get_hit_pos()
         return None
 
-    def add_nature(self, tile): 
+    def add_nature(self, tile):
         for x, y, area in tile.get_nature_info():
             x += random.uniform(-10, 10)
             y += random.uniform(-10, 10)

@@ -10,7 +10,7 @@ from panda3d.core import BitMask32, LColor, Point3, Vec3, Point2
 from panda3d.bullet import BulletRigidBodyNode, BulletSphereShape
 
 from geomnode_maker import Sphere
-# from walker import Status as WalkerStatus
+from walker import Motions
 
 
 class Colors(Enum):
@@ -111,10 +111,10 @@ class BallController:
         self.balls = NodePath('balls')
         self.balls.reparent_to(base.render)
 
-    def get_shoot_pos(self, walker_pos):
-        """Args:
-            walker_pos (point3) position where Ralph is.
-            name (str) node name of the body on which Ralph steps.
+    def get_shoot_pos(self, pos):
+        """Returns the point where ball is thrown.
+            Args:
+                pos (Point3): point where Ralph contacts with the terrain now.
         """
         # the horizontal film size of the virtual film
         hor_film_size = base.camLens.get_hfov()
@@ -124,41 +124,37 @@ class BallController:
 
         x = 100 * round(math.cos(math.radians(angle)), 2)
         y = 100 * round(math.sin(math.radians(angle)), 2)
-        pt2 = Point2(x, y)
+        pt2 = Point2(x, y) + pos.xy
+        z = 30
 
-        result = self.world.ray_test_closest(
-            Point3(pt2, 30), Point3(pt2, -30), mask=BitMask32.bit(1)
-        )
+        if (result := self.world.ray_test_closest(
+                Point3(pt2, 30), Point3(pt2, -30), mask=BitMask32.bit(1))).has_hit():
+            z = result.get_hit_pos().z + 35
 
-        if result.has_hit():
-            pos = result.get_hit_pos()
-            shoot_pos = Point3(pt2 + walker_pos.xy, pos.z + 35)
-            return shoot_pos
+        return Point3(pt2, z)
 
-    def predict_walker_pos(self, walker_pos):
-        match self.walker.state:
-            case WalkerStatus.FORWARD:
-                predict_pos = walker_pos + self.walker.get_orientation() * -10 * 0.8
-                start, end = -0.1, 0.1
-            case WalkerStatus.BACKWARD:
-                predict_pos = walker_pos + self.walker.get_orientation() * 5 * 0.8
-                start, end = -0.3, 0.3
+    def get_dest_pos(self, pos):
+        """Returns the ball's destination poin.  
+            Args:
+                pos (Point3): point where Ralph contacts with the terrain now.
+        """
+        match self.walker.motion:
+            case Motions.FORWARD:
+                distance = random.uniform(0.7, 0.8) * -10
+            case Motions.BACKWARD:
+                distance = random.uniform(0.7, 0.8) * 6
             case _:
-                predict_pos = walker_pos
-                start, end = -0.2, 0.2
+                distance = random.uniform(-0.03, 0.03)
 
-        predict_pos.x += random.uniform(start, end)
-        predict_pos.y += random.uniform(start, end)
-        return predict_pos
+        dest = pos + self.walker.get_orientation() * distance
+        return dest
 
     def shoot(self):
         if contact_pos := self.walker.get_terrain_contact_pos():
             if shoot_pos := self.get_shoot_pos(contact_pos):
-                # predicted_walker_pos = self.predict_walker_pos(contact_pos)
-                predicted_walker_pos = self.walker.get_pos()
-
+                dest = self.get_dest_pos(contact_pos)
                 color = Colors.choice()
-                ball = Ball(self.ball, color, shoot_pos, predicted_walker_pos)
+                ball = Ball(self.ball, color, shoot_pos, dest)
                 ball.reparent_to(self.balls)
                 self.world.attach(ball.node())
                 self.moving_q.append(ball)
