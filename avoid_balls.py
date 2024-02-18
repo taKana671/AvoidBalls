@@ -13,8 +13,7 @@ from panda3d.core import TransparencyAttrib
 from panda3d.core import load_prc_file_data
 from direct.interval.IntervalGlobal import Sequence, Func
 
-from walker import Walker
-from walker import Status as WalkingStatus
+from walker import Walker, Motion
 from scene import Scene
 from ball_controller import BallController
 
@@ -155,18 +154,18 @@ class AvoidBalls(ShowBase):
                 self.camera.look_at(self.floater)
 
     def control_walker(self, dt):
-        self.walker.state = None
+        motions = []
 
         if inputState.is_set('forward'):
-            self.walker.state = WalkingStatus.FORWARD
+            motions.append(Motion.FORWARD)
         if inputState.is_set('backward'):
-            self.walker.state = WalkingStatus.BACKWARD
+            motions.append(Motion.BACKWARD)
         if inputState.is_set('left'):
-            self.walker.state = WalkingStatus.LEFT
+            motions.append(Motion.LEFT)
         if inputState.is_set('right'):
-            self.walker.state = WalkingStatus.RIGHT
+            motions.append(Motion.RIGHT)
 
-        self.walker.update(dt)
+        self.walker.update(dt, motions)
 
     def update(self, task):
         dt = globalClock.get_dt()

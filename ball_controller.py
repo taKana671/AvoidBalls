@@ -10,7 +10,7 @@ from panda3d.core import BitMask32, LColor, Point3, Vec3, Point2
 from panda3d.bullet import BulletRigidBodyNode, BulletSphereShape
 
 from geomnode_maker import Sphere
-from walker import Status as WalkerStatus
+# from walker import Status as WalkerStatus
 
 
 class Colors(Enum):
@@ -154,7 +154,9 @@ class BallController:
     def shoot(self):
         if contact_pos := self.walker.get_terrain_contact_pos():
             if shoot_pos := self.get_shoot_pos(contact_pos):
-                predicted_walker_pos = self.predict_walker_pos(contact_pos)
+                # predicted_walker_pos = self.predict_walker_pos(contact_pos)
+                predicted_walker_pos = self.walker.get_pos()
+
                 color = Colors.choice()
                 ball = Ball(self.ball, color, shoot_pos, predicted_walker_pos)
                 ball.reparent_to(self.balls)

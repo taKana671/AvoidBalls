@@ -10,12 +10,13 @@ from panda3d.core import Vec3, Point3, LColor, BitMask32
 from utils import create_line_node
 
 
-class Status(Enum):
+class Motion(Enum):
 
     FORWARD = auto()
     BACKWARD = auto()
     LEFT = auto()
     RIGHT = auto()
+    TURN = auto()
 
 
 class Walker(NodePath):
@@ -64,7 +65,6 @@ class Walker(NodePath):
         self.under.reparent_to(self.direction_nd)
         self.under.set_pos(0, -1.2, -10)
 
-        self.state = None
         self.test_shape = BulletSphereShape(0.5)
 
         # draw ray cast lines for dubug
@@ -105,18 +105,23 @@ class Walker(NodePath):
         result = self.world.sweep_test_closest(self.test_shape, ts_from, ts_to, BitMask32.bit(2), 0.0)
         return result.has_hit()
 
-    def update(self, dt):
+    def update(self, dt, motions):
         direction = 0
         angle = 0
+        anim = None
 
-        if self.state == Status.FORWARD:
-            direction += -1
-        if self.state == Status.BACKWARD:
-            direction += 1
-        if self.state == Status.LEFT:
+        if Motion.LEFT in motions:
             angle += 100 * dt
-        if self.state == Status.RIGHT:
+            anim = Motion.TURN
+        if Motion.RIGHT in motions:
             angle -= 100 * dt
+            anim = Motion.TURN
+        if Motion.FORWARD in motions:
+            direction += -1
+            anim = Motion.FORWARD
+        if Motion.BACKWARD in motions:
+            direction += 1
+            anim = Motion.BACKWARD
 
         if angle:
             self.turn(angle)
@@ -131,7 +136,7 @@ class Walker(NodePath):
         if distance != 0:
             self.move(distance)
 
-        self.play_anim()
+        self.play_anim(anim)
 
     def turn(self, angle):
         self.direction_nd.set_h(self.direction_nd.get_h() + angle)
@@ -144,26 +149,23 @@ class Walker(NodePath):
             if not self.predict_collision(next_pos):
                 self.set_pos(next_pos)
 
-    def play_anim(self):
-        match self.state:
-            case Status.FORWARD:
+    def play_anim(self, anim):
+        match anim:
+            case Motion.FORWARD:
                 anim = Walker.RUN
                 rate = 1
-            case Status.BACKWARD:
+            case Motion.BACKWARD:
                 anim = Walker.WALK
                 rate = -1
-            case Status.LEFT | Status.RIGHT:
+            case Motion.TURN:
                 anim = Walker.WALK
                 rate = 1
             case _:
-                self.stop_anim()
+                if self.actor.get_current_anim() is not None:
+                    self.actor.stop()
+                    self.actor.pose(self.WALK, 5)
                 return
 
         if self.actor.get_current_anim() != anim:
             self.actor.loop(anim)
             self.actor.set_play_rate(rate, anim)
-
-    def stop_anim(self):
-        if self.actor.get_current_anim() is not None:
-            self.actor.stop()
-            self.actor.pose(self.WALK, 5)
