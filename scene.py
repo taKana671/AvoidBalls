@@ -52,12 +52,6 @@ class Scene(NodePath):
         self.terrains.natures.remove_from_terrain()
         self.goal_gate.cleanup_gate()
 
-    def get_pos_on_terrain(self, x, y):
-        hit = self.world.ray_test_closest(
-            Point3(x, y, 30), Point3(x, y, -30), mask=BitMask32.bit(1)
-        )
-        return hit.get_hit_pos()
-
     def decide_goal_pos(self):
         candidates = [
             [Point2(230, 230), -45],
@@ -66,9 +60,7 @@ class Scene(NodePath):
             [Point2(-230, 230), 45],
         ]
         pt, angle = random.choice(candidates)
-        # Do not use self.terrans.check_position to avoid error
-        # that occurs when the pt is the same with current pos
-        pos = self.get_pos_on_terrain(*pt)
+        pos = self.terrains.check_position(*pt, sweep=False)
         return pos, angle
 
     def change_scene(self):

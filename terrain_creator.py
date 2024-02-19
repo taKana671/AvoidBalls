@@ -156,8 +156,8 @@ class BulletTerrain(NodePath):
             self.root.set_shader_input(f'tex_ScaleFactor{i}', tex_scale)
             self.root.set_texture(ts, tex)
 
-    def get_terrain_elevaton(self, pt):
-        return self.terrain.get_elevation(*pt) * self.root.get_sz()
+    # def get_terrain_elevaton(self, pt):
+    #     return self.terrain.get_elevation(*pt) * self.root.get_sz()
 
 
 class Terrains(NodePath):
@@ -222,43 +222,46 @@ class Terrains(NodePath):
 
             self.add_nature(terrain.tile)
 
-    def check_position(self, x, y):
+    def check_position(self, x, y, sweep=True):
         pt_from = Point3(x, y, 30)
         pt_to = Point3(x, y, -30)
 
-        ts_from = TransformState.make_pos(pt_from)
-        ts_to = TransformState.make_pos(pt_to)
+        if sweep:
+            ts_from = TransformState.make_pos(pt_from)
+            ts_to = TransformState.make_pos(pt_to)
 
-        if not self.world.sweep_test_closest(
-                self.test_shape, ts_from, ts_to, BitMask32.bit(2) | BitMask32.bit(5), 0.0).has_hit():
-            result = self.world.ray_test_closest(pt_from, pt_to, mask=BitMask32.bit(1))
-            if result.has_hit():
-                return result
-                # return result.get_hit_pos()
+            if self.world.sweep_test_closest(
+                    self.test_shape, ts_from, ts_to, BitMask32.bit(2) | BitMask32.bit(5), 0.0).has_hit():
+                return None
+
+        if (result := self.world.ray_test_closest(
+                pt_from, pt_to, mask=BitMask32.bit(1))).has_hit():
+            return result.get_hit_pos()
+
         return None
 
     def add_nature(self, tile):
-        for x, y, area in tile.get_nature_info():
+        n = tile.quadrant
+
+        for i, (x, y, area) in enumerate(tile.get_nature_info()):
             x += random.uniform(-10, 10)
             y += random.uniform(-10, 10)
 
-            if ray_hit := self.check_position(x, y):
-                pos = ray_hit.get_hit_pos()
-                terrain_num = ray_hit.get_node().get_name().split('_')[-1]
+            if pos := self.check_position(x, y):
 
                 match area:
                     case Areas.LOWLAND:
-                        self.natures.add_to_terrain(Rock(terrain_num, pos), True)
+                        self.natures.add_to_terrain(Rock(n, pos), True)
                     case Areas.PLAIN:
-                        self.natures.add_to_terrain(Shrubbery(terrain_num, pos))
+                        self.natures.add_to_terrain(Shrubbery(n, pos))
                     case Areas.MOUNTAIN:
-                        self.natures.add_to_terrain(Pine(terrain_num, pos), True)
+                        self.natures.add_to_terrain(Pine(n, pos), True)
                     case Areas.SUBALPINE:
-                        self.natures.add_to_terrain(Fir(terrain_num, pos), True)
+                        self.natures.add_to_terrain(Fir(n, pos), True)
                     case Areas.ALPINE:
-                        self.natures.add_to_terrain(Grass(terrain_num, pos))
+                        self.natures.add_to_terrain(Grass(n, pos))
 
-    def get_terrain_elevaton(self, pt, name):
-        num = int(name.split('_')[-1])
-        terrain = self.bullet_terrains[num]
-        z = terrain.get_terrain_elevaton(pt)
+    # def get_terrain_elevaton(self, pt, name):
+    #     num = int(name.split('_')[-1])
+    #     terrain = self.bullet_terrains[num]
+    #     z = terrain.get_terrain_elevaton(pt)

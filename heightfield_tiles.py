@@ -28,9 +28,10 @@ class Tile:
         center (Point2)
     """
 
-    def __init__(self, name, quadrant, size):
+    def __init__(self, name, center, quadrant, size):
         self.file = f'{TERRAIN_DIR}/{name}.png'
-        self.center = quadrant * (size / 2)
+        self.center = center
+        self.quadrant = quadrant
         self.size = size
         self.name = name
 
@@ -78,11 +79,13 @@ class HeightfieldCreator:
 
     def __init__(self):
         self.size = 256
+        half = self.size / 2
+
         self._tiles = [
-            Tile('top_left', Point2(-1, 1), self.size),
-            Tile('top_right', Point2(1, 1), self.size),
-            Tile('bottom_left', Point2(-1, -1), self.size),
-            Tile('bottom_right', Point2(1, -1), self.size)
+            Tile('top_right', Point2(1, 1) * half, 1, self.size),
+            Tile('top_left', Point2(-1, 1) * half, 2, self.size),
+            Tile('bottom_left', Point2(-1, -1) * half, 3, self.size),
+            Tile('bottom_right', Point2(1, -1) * half, 4, self.size)
         ]
         self.folders = [
             p for p in Path(TERRAIN_DIR).glob('**') if re.search(r'\d+_\d+', str(p))

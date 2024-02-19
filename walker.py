@@ -36,7 +36,7 @@ class Walker(NodePath):
 
         self.set_collide_mask(BitMask32.bit(1) | BitMask32.bit(4))
         self.set_scale(0.5)
-        self.reparent_to(base.render)
+        # self.reparent_to(base.render)
         self.world.attach(self.node())
 
         self.direction_nd = NodePath(PandaNode('direction'))
@@ -67,8 +67,6 @@ class Walker(NodePath):
                 pos, below, BitMask32.bit(1) | BitMask32.bit(2))).has_hit():
             return hit.get_hit_pos()
 
-        # if ray_result.has_hit():
-        #     return ray_result.get_hit_pos()
         return None
 
     def get_orientation(self):

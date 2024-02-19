@@ -32,8 +32,9 @@ class Status(Enum):
     PLAY = auto()
     SETUP = auto()
     CLEANUP = auto()
-    START = auto()
+    # START = auto()
     CHANGE = auto()
+    WAITING = auto()
 
 
 class AvoidBalls(ShowBase):
@@ -44,24 +45,20 @@ class AvoidBalls(ShowBase):
         self.world = BulletWorld()
         self.world.set_gravity(0, 0, -9.81)
 
-        self.scene = Scene(self.world)
-        self.scene.reparent_to(self.render)
-
         self.debug_np = self.render.attach_new_node(BulletDebugNode('debug'))
         self.world.set_debug_node(self.debug_np.node())
 
+        self.scene = Scene(self.world)
+        self.scene.reparent_to(self.render)
+        pos = self.scene.terrains.check_position(0, 0, sweep=False)
+
         self.walker = Walker(self.world)
+        self.walker.set_pos(pos + Vec3(0, 0, 1.5))
+        self.walker.reparent_to(base.render)
+
         self.floater = NodePath('floater')
         self.floater.set_z(3.0)
         self.floater.reparent_to(self.walker)
-
-        # pos = self.scene.get_pos_on_terrain(0, 0)
-        # self.walker.set_pos(pos + Point3(0, 0, 1.2))
-        # import pdb; pdb.set_trace()
-        pos = self.walker.get_terrain_contact_pos(Point3(0, 0, 10))
-        # print(pos)
-        self.walker.set_pos(pos)
-        # import pdb; pdb.set_trace()
 
         self.camera.reparent_to(self.walker)
         self.camera.set_pos(self.walker.navigate())
@@ -75,11 +72,6 @@ class AvoidBalls(ShowBase):
         self.screen = Screen()
         self.screen.show_title_screen()
 
-        # *****when debug***************
-        # self.camera.set_pos(0, 0, 30)
-        # self.camera.look_at(self.walker)
-        # *****when debug***************
-
         inputState.watch_with_modifiers('forward', 'arrow_up')
         inputState.watch_with_modifiers('backward', 'arrow_down')
         inputState.watch_with_modifiers('left', 'arrow_left')
@@ -88,17 +80,12 @@ class AvoidBalls(ShowBase):
         self.accept('d', self.toggle_debug)
         self.accept('p', self.print_position)
         self.accept('escape', sys.exit)
-        # base.taskMgr.do_method_later(2, self.start_game, 'setup_nature')
         self.taskMgr.add(self.update, 'update')
-        base.taskMgr.do_method_later(2, self.screen.hide_title_screen, 'hide_title_screen')
-        # self.taskMgr.add(self.scene.goal_gate.check_finish, 'check_finish')
+        self.taskMgr.do_method_later(2, self.screen.hide_title_screen, 'hide_title_screen')
         self.state = Status.START
 
-    def change_state(self):
-        self.state = Status.CLEANUP
-
     def print_position(self):
-        print('walker_pos: ', self.walker.get_pos(), ' camera_pos: ', self.camera.get_pos())
+        print('walker_pos: ', self.walker.get_pos())
 
     def toggle_debug(self):
         if self.debug_np.is_hidden():
@@ -106,17 +93,11 @@ class AvoidBalls(ShowBase):
         else:
             self.debug_np.hide()
 
-    def start_game(self, task):
-        self.state = Status.PLAY
-        return task.done
-
     def ray_cast(self, from_pos, to_pos):
-        result = self.world.ray_test_closest(from_pos, to_pos, BitMask32.bit(1) | BitMask32.bit(2))
-        if result.has_hit():
-            # if result.get_node() != self.walker.node():
-            #     pass
-                # print(result.get_node())
+        if (result := self.world.ray_test_closest(
+                from_pos, to_pos, BitMask32.bit(1) | BitMask32.bit(2))).has_hit():
             return result.get_node()
+
         return None
 
     def find_camera_pos(self, walker_pos, next_pos):
@@ -139,10 +120,9 @@ class AvoidBalls(ShowBase):
         return None
 
     def control_camera(self):
-        """Reposition the camera if the camera's view is blocked by other objects like terrain,
-            rocks, trees.
+        """Reposition the camera if the camera's view is blocked
+           by other objects like terrain, rocks, trees.
         """
-        # reposition
         walker_pos = self.walker.get_pos()
         camera_pos = self.camera.get_pos() + walker_pos
 
@@ -179,7 +159,6 @@ class AvoidBalls(ShowBase):
                     self.timer = task.time + random.randint(1, 10) / 10
 
                 if self.scene.goal_gate.sensor.finish_line:
-                    # self.screen.reparent_to(self.render2d)
                     self.screen.show_white_screen()
                     self.state = Status.CLEANUP
 
@@ -200,9 +179,10 @@ class AvoidBalls(ShowBase):
                 self.walker.set_pos(pos + Point3(-2, -2, 3))
 
                 self.screen.hide_screen()
-                self.state = Status.START
+                # self.state = Status.START
+                self.state = Status.WAITING
 
-            case Status.START:
+            case Status.WAITING:
                 if not self.screen.is_appear:
                     self.state = Status.PLAY
 
