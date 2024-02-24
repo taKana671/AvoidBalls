@@ -101,10 +101,10 @@ class Ball(NodePath):
 
 class BallController:
 
-    def __init__(self, world, walker, display):
+    def __init__(self, world, walker, score_display):
         self.world = world
         self.walker = walker
-        self.display = display
+        self.score_display = score_display
         self.ball = Sphere()
         self.moving_q = deque()
         self.remove_q = deque()
@@ -188,8 +188,8 @@ class BallController:
 
         if result.has_hit():
             if result.get_node() == self.walker.node():
-                self.display.show_score(hit=1)
+                self.score_display.add(hit=1)
             else:
-                self.display.show_score(avoid=1)
+                self.score_display.add(avoid=1)
 
             return True

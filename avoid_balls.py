@@ -2,7 +2,6 @@ import random
 import sys
 from enum import Enum, auto
 
-from direct.gui.DirectGui import OnscreenText
 from direct.showbase.ShowBase import ShowBase
 from direct.showbase.ShowBaseGlobal import globalClock
 from direct.showbase.InputStateGlobal import inputState
@@ -16,6 +15,7 @@ from direct.interval.IntervalGlobal import Sequence, Func
 from walker import Walker, Motions
 from scene import Scene
 from ball_controller import BallController
+from utils import DrawText
 
 
 load_prc_file_data("", """
@@ -30,11 +30,8 @@ load_prc_file_data("", """
 class Status(Enum):
 
     PLAY = auto()
+    READY = auto()
     SETUP = auto()
-    CLEANUP = auto()
-    # START = auto()
-    CHANGE = auto()
-    WAITING = auto()
 
 
 class AvoidBalls(ShowBase):
@@ -66,11 +63,12 @@ class AvoidBalls(ShowBase):
         self.camLens.set_fov(90)
 
         self.socre_display = ScoreDisplays()
-        self.socre_display.show_score()
+        self.screen = Screen()
+        self.screen.show_start_screen()
+
         self.ball_controller = BallController(self.world, self.walker, self.socre_display)
         self.timer = 0
-        self.screen = Screen()
-        self.screen.show_title_screen()
+        self.state = None
 
         inputState.watch_with_modifiers('forward', 'arrow_up')
         inputState.watch_with_modifiers('backward', 'arrow_down')
@@ -81,8 +79,6 @@ class AvoidBalls(ShowBase):
         self.accept('p', self.print_position)
         self.accept('escape', sys.exit)
         self.taskMgr.add(self.update, 'update')
-        self.taskMgr.do_method_later(2, self.screen.hide_title_screen, 'hide_title_screen')
-        self.state = Status.START
 
     def print_position(self):
         print('walker_pos: ', self.walker.get_pos())
@@ -159,32 +155,24 @@ class AvoidBalls(ShowBase):
                     self.timer = task.time + random.randint(1, 10) / 10
 
                 if self.scene.goal_gate.sensor.finish_line:
-                    self.screen.show_white_screen()
-                    self.state = Status.CLEANUP
+                    self.screen.show_switch_screen()
+                    self.state = None
 
-            case Status.CLEANUP:
-                if self.screen.is_appear:
-                    self.scene.cleanup_scene()
-                    self.state = Status.CHANGE
-
-            case Status.CHANGE:
-                self.scene.change_scene()
-                self.state = Status.SETUP
-
-            case Status.SETUP:
-                self.scene.setup_scene()
-
-                # pos = self.scene.get_pos_on_terrain(230, 230)
-                pos = self.scene.goal_gate.poles.get_pos(base.render)
-                self.walker.set_pos(pos + Point3(-2, -2, 3))
-
-                self.screen.hide_screen()
-                # self.state = Status.START
-                self.state = Status.WAITING
-
-            case Status.WAITING:
+            case Status.READY:
                 if not self.screen.is_appear:
                     self.state = Status.PLAY
+
+            case Status.SETUP:
+                if self.scene.update():
+                    pos = self.scene.goal_gate.poles.get_pos(base.render)
+                    self.walker.set_pos(pos + Vec3(0, 0, 1.5))
+
+                    self.screen.hide_screen()
+                    self.state = Status.READY
+
+            case _:
+                if self.screen.is_appear:
+                    self.state = Status.SETUP
 
         self.world.do_physics(dt)
         return task.cont
@@ -197,84 +185,66 @@ class Screen(NodePath):
         cm.set_frame_fullscreen_quad()
         super().__init__(cm.generate())
         self.set_transparency(TransparencyAttrib.MAlpha)
-        self.is_appear = False
-        self.reparent_to(base.render2d)
-        self.transparent = LColor(.96, .96, .96, .0)
-        self.white_smoke = LColor(.96, .96, .96, 1.0)
-        self.gray = LColor(.5, .5, .5, 1.0)
 
-    def change_flag(self):
+        self.bg = LColor(.95, .95, .95, 1.0)
+        self.fg = LColor(.4, .4, .4, 1.0)
+        self.is_appear = False
+
+        self.title = DrawText(
+            base.aspect2d, TextNode.ACenter, Point2(0, 0), self.fg, .2)
+
+    def switch_screens(self):
         self.is_appear = not self.is_appear
 
-    def show_white_screen(self):
+    def show_start_screen(self):
         self.reparent_to(base.render2d)
+        self.set_color(self.bg)
+        self.switch_screens()
+        self.title.setText('Avoid Balls')
+
+    def show_switch_screen(self):
+        self.title.setText('Change the terrain')
+
         Sequence(
-            self.colorInterval(2.0, self.white_smoke, self.transparent),
-            Func(lambda: self.change_flag()),
+            Func(lambda: self.title.reparent_to(base.aspect2d)),
+            Func(lambda: self.reparent_to(base.render2d)),
+            self.colorInterval(2.0, self.bg, self.bg - LColor(0, 0, 0, 1.0)),
+            self.title.colorScaleInterval(1.0, self.fg, blendType='easeInOut'),
+            Func(self.switch_screens)
         ).start()
 
     def hide_screen(self):
         Sequence(
-            self.colorInterval(2.0, self.transparent, self.white_smoke),
-            Func(lambda: self.change_flag()),
-            Func(lambda: self.detach_node())
+            self.title.colorScaleInterval(2.0, self.fg - LColor(0, 0, 0, 1.0), blendType='easeInOut'),
+            self.colorInterval(1.0, self.bg - LColor(0, 0, 0, 1.0), self.bg),
+            Func(lambda: self.title.detach_node()),
+            Func(lambda: self.detach_node()),
+            Func(self.switch_screens),
         ).start()
-
-    def show_title_screen(self):
-        self.change_flag()
-        self.set_color(self.white_smoke)
-        self.reparent_to(base.render2d)
-        self.title = OnscreenText(
-            text='Avoid Balls',
-            parent=base.aspect2d,
-            align=TextNode.ACenter,
-            font=base.loader.load_font('font/Candaral.ttf'),
-            scale=0.2,
-            fg=self.gray,
-            pos=(0, 0)
-        )
-
-    def hide_title_screen(self, task):
-        Sequence(
-            self.title.colorScaleInterval(1.0, LColor(.5, .5, .5, .0), blendType='easeInOut'),
-            Func(self.hide_screen)
-        ).start()
-        return task.done
 
 
 class ScoreDisplays:
 
     def __init__(self):
-        font = base.loader.load_font('font/Candaral.ttf')
-        self.avoid = Score(font, Point2(0.05, -0.1), 'avoid:')
-        self.hit = Score(font, Point2(0.17, -0.2), 'hit:')
+        fg = LColor(1, 1, 1, 1)
+        scale = 0.1
+        parent = base.a2dTopLeft
+        align = TextNode.ALeft
+        self.avoid = DrawText(parent, align, Point2(0.05, -0.1), fg, scale)
+        self.hit = DrawText(parent, align, Point2(0.17, -0.2), fg, scale)
         self.avoid_score = 0
         self.hit_score = 0
 
-    def show_score(self, avoid=0, hit=0):
-        self.avoid.show_score(avoid)
-        self.hit.show_score(hit)
+    def reset(self):
+        self.avoid.setText('')
+        self.hit.setText('')
 
+    def add(self, avoid=0, hit=0):
+        self.avoid_score += avoid
+        self.hit_score += hit
 
-class Score(OnscreenText):
-
-    def __init__(self, font, pos, format, scale=0.1, fg=(1, 1, 1, 1), text=''):
-        super().__init__(
-            text=text,
-            parent=base.a2dTopLeft,
-            align=TextNode.ALeft,
-            pos=pos,
-            scale=scale,
-            font=font,
-            fg=fg,
-            mayChange=True
-        )
-        self.score = 0
-        self.fmt = format
-
-    def show_score(self, score):
-        self.score += score
-        self.setText(f'{self.fmt} {self.score}')
+        self.avoid.setText(f'avoid: {self.avoid_score}')
+        self.hit.setText(f'hit: {self.hit_score}')
 
 
 if __name__ == '__main__':

@@ -1,8 +1,4 @@
-import os
-
-import cv2
-import numpy as np
-from PIL import Image
+from direct.gui.DirectGui import OnscreenText
 from panda3d.core import LineSegs, NodePath
 
 
@@ -23,19 +19,19 @@ def create_line_node(from_pos, to_pos, color, thickness=2.0):
     return NodePath(node)
 
 
-def make_noise(x=256, y=256):
-    # byte_arr = bytearray(os.urandom(x * y))
-    # arr = np.array(byte_arr)
-    # arr = arr.astype(np.uint16)
-    # img = np.array(byte_arr).reshape(x, y)
-    # cv2.imwrite('noise.png', img)
+class DrawText(OnscreenText):
 
-    byte_arr = bytearray(os.urandom(x * y))
-    arr = np.array(byte_arr)
-    arr = arr.reshape(x, y)
-    img = Image.fromarray(np.uint8(arr))
-    img.save('noise.png')
+    def __init__(self, parent, align, pos, fg, scale=0.1):
+        font = base.loader.load_font('font/Candaral.ttf')
+        self.text_root = parent
 
-
-if __name__ == '__main__':
-    make_noise()
+        super().__init__(
+            text='',
+            parent=parent,
+            align=align,
+            pos=pos,
+            scale=scale,
+            font=font,
+            fg=fg,
+            mayChange=True
+        )

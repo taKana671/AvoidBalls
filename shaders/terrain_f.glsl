@@ -33,37 +33,32 @@ void main() {
     float scale = 500.0;
     float min_z = 0.0;
     float max_z = 0.0;
-    float w0 = 0.0;
-    float w1 = 0.0;
-    float w2 = 0.0;
-    float w3 = 0.0;
-
-    // stone
+   
+    // small stone
     min_z = -100.0/scale;
-    max_z = 50.0/scale;
+    max_z = 0.0/scale;
     // min_z = -100.0/scale;
-    // max_z = 0.0/scale;
-    w0 = computeWeight(min_z, max_z, vertex);
+    // max_z = 50.0/scale;
+    float w0 = computeWeight(min_z, max_z, vertex);
 
-    // glass
-    min_z = 51.0/scale;
-    max_z = 200.0/scale;
-    w1 = computeWeight(min_z, max_z, vertex);
-
-    // red_ground
-    min_z = 201.0/scale;
-    max_z = 300.0/scale;
-    // min_z = 101.0/scale;
+    // light green grass
+    min_z = 1.0/scale;
+    max_z = 100.0/scale;
+    // min_z = 51.0/scale;
     // max_z = 200.0/scale;
-    w2 = computeWeight(min_z, max_z, vertex);
+    float w1 = computeWeight(min_z, max_z, vertex);
 
-    // dark_green
-    min_z = 301.0/scale;
-    max_z = 500.0/scale;
+    // green grass
+    min_z = 101.0/scale;
+    max_z = 300.0/scale;
     // min_z = 201.0/scale;
     // max_z = 300.0/scale;
-    w3 = computeWeight(min_z, max_z, vertex);
+    float w2 = computeWeight(min_z, max_z, vertex);
 
+    // dark green grass
+    min_z = 301.0/scale;
+    max_z = 500.0/scale;
+    float w3 = computeWeight(min_z, max_z, vertex);
 
     fragColor = tex0 * w0 + tex1 * w1 + tex2 * w2 + tex3 * w3;
 }

@@ -1,11 +1,20 @@
 import random
+from enum import Enum, auto
 
 from panda3d.core import NodePath, PandaNode
-from panda3d.core import Point2, LColor, Point3, BitMask32
+from panda3d.core import Point2, LColor
 
 from goal_gate import GoalGate
-from terrain_creator import Terrains
 from lights import BasicAmbientLight, BasicDayLight
+from terrain_creator import Terrains
+
+
+class Status(Enum):
+
+    COMPLETE = auto()
+    CLEANUP = auto()
+    SETUP = auto()
+    CHANGE = auto()
 
 
 class Sky(NodePath):
@@ -25,6 +34,7 @@ class Scene(NodePath):
     def __init__(self, world):
         super().__init__(PandaNode('scene'))
         self.world = world
+        self.state = None
 
         self.ambient_light = BasicAmbientLight()
         self.ambient_light.reparent_to(self)
@@ -39,8 +49,6 @@ class Scene(NodePath):
 
         self.goal_gate = GoalGate(self.world)
         self.goal_gate.reparent_to(self)
-
-        self.setup_scene()
 
     def setup_scene(self):
         pos, angle = self.decide_goal_pos()
@@ -63,5 +71,25 @@ class Scene(NodePath):
         pos = self.terrains.check_position(*pt, sweep=False)
         return pos, angle
 
-    def change_scene(self):
-        self.terrains.replace_terrain()
+    def update(self):
+
+        match self.state:
+
+            case Status.COMPLETE:
+                self.state = Status.CLEANUP
+
+            case Status.CLEANUP:
+                self.cleanup_scene()
+                self.state = Status.CHANGE
+
+            case Status.CHANGE:
+                self.terrains.replace_terrain()
+                self.state = Status.SETUP
+
+            case Status.SETUP:
+                self.setup_scene()
+                self.state = Status.COMPLETE
+                return True
+
+            case _:
+                self.state = Status.SETUP
