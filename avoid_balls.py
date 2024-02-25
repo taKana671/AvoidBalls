@@ -164,8 +164,10 @@ class AvoidBalls(ShowBase):
 
             case Status.SETUP:
                 if self.scene.update():
-                    pos = self.scene.goal_gate.poles.get_pos(base.render)
-                    self.walker.set_pos(pos + Vec3(0, 0, 1.5))
+                    if self.scene.terrain_center:
+                        pos = self.scene.terrain_center + Vec3(0, 0, 1.5)
+                        self.walker.set_pos(pos)
+                        self.scene.terrain_center = None
 
                     self.screen.hide_screen()
                     self.state = Status.READY

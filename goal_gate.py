@@ -37,7 +37,7 @@ class GoalGate(NodePath):
 
     def create_poles(self):
         self.poles = Poles(Point3(-3, 0, 0), Point3(3, 0, 0))
-        tex = base.loader.load_texture('textures/bark1.jpg')
+        tex = base.loader.load_texture('textures/bark_01.jpg')
         self.poles.set_texture(tex)
         self.poles.reparent_to(self)
         self.world.attach(self.poles.node())
@@ -104,7 +104,7 @@ class Cloth(NodePath):
         vis_nd.add_geom(geom)
         vis_np = self.attach_new_node(vis_nd)
         vis_np.reparent_to(self)
-        vis_np.set_texture(base.loader.load_texture('textures/finish3.png'))
+        vis_np.set_texture(base.loader.load_texture('textures/finish.png'))
         BulletHelper.make_texcoords_for_patch(geom, resx, resy)
 
 

@@ -108,7 +108,7 @@ class Rock(NodePath):
     def __init__(self, terrain_number, pos):
         super().__init__(BulletRigidBodyNode(f'rock_{terrain_number}'))
         model = Sphere(segments=8)
-        tex = base.loader.load_texture('textures/rock1.jpg')
+        tex = base.loader.load_texture('textures/rock_01.jpg')
         model.set_texture(tex)
         model.reparent_to(self)
 

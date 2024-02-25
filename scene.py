@@ -35,6 +35,7 @@ class Scene(NodePath):
         super().__init__(PandaNode('scene'))
         self.world = world
         self.state = None
+        self.terrain_center = None
 
         self.ambient_light = BasicAmbientLight()
         self.ambient_light.reparent_to(self)
@@ -84,6 +85,7 @@ class Scene(NodePath):
 
             case Status.CHANGE:
                 self.terrains.replace_terrain()
+                self.terrain_center = self.terrains.check_position(0, 0, sweep=False)
                 self.state = Status.SETUP
 
             case Status.SETUP:

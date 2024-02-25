@@ -13,6 +13,7 @@ out vec2 texcoord0;
 out vec2 texcoord1;
 out vec2 texcoord2;
 out vec2 texcoord3;
+
 out vec4 vertex;
 
 void main() {

@@ -15,9 +15,9 @@ in vec2 texcoord0;
 in vec2 texcoord1;
 in vec2 texcoord2;
 in vec2 texcoord3;
+
 in vec4 vertex;
 out vec4 fragColor;
-
 
 float computeWeight(float min_z, float max_z, vec4 vertex){
     float region = max_z - min_z;
@@ -34,28 +34,22 @@ void main() {
     float min_z = 0.0;
     float max_z = 0.0;
    
-    // small stone
+    // tex0
     min_z = -100.0/scale;
     max_z = 0.0/scale;
-    // min_z = -100.0/scale;
-    // max_z = 50.0/scale;
     float w0 = computeWeight(min_z, max_z, vertex);
-
-    // light green grass
+ 
+    // tex1
     min_z = 1.0/scale;
     max_z = 100.0/scale;
-    // min_z = 51.0/scale;
-    // max_z = 200.0/scale;
     float w1 = computeWeight(min_z, max_z, vertex);
 
-    // green grass
+    // tex2
     min_z = 101.0/scale;
     max_z = 300.0/scale;
-    // min_z = 201.0/scale;
-    // max_z = 300.0/scale;
     float w2 = computeWeight(min_z, max_z, vertex);
 
-    // dark green grass
+    // tex3
     min_z = 301.0/scale;
     max_z = 500.0/scale;
     float w3 = computeWeight(min_z, max_z, vertex);

@@ -13,6 +13,11 @@ from panda3d.core import Point2, Vec2
 TERRAIN_DIR = 'terrains'
 
 
+class TileSizeError(Exception):
+    """Raised when tile size is not (256, 256)
+    """
+
+
 class Areas(Enum):
 
     LOWLAND = auto()
@@ -23,10 +28,6 @@ class Areas(Enum):
 
 
 class Tile:
-    """
-    Args
-        center (Point2)
-    """
 
     def __init__(self, name, center, quadrant, size):
         self.file = f'{TERRAIN_DIR}/{name}.png'
@@ -68,11 +69,6 @@ class Tile:
         cx += self.center.x
         cy += self.center.y
         return cx, cy
-
-
-class TileSizeError(Exception):
-    """Raised when tile size is not (256, 256)
-    """
 
 
 class HeightfieldCreator:
@@ -154,9 +150,6 @@ class HeightfieldCreator:
         arr = np.concatenate(
             [np.concatenate([self.get_array(folder / f'{x}_{y}.txt') for x, y in sub], 1) for sub in li], 0
         )
-        # arr = np.concatenate(
-        #     [np.concatenate([self.get_array(f'{path}/{x}_{y}.txt') for x, y in sub], 1) for sub in li], 0
-        # )
 
         arr = arr.astype(np.float64)
         self.make_heightfield_images(arr)

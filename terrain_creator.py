@@ -16,29 +16,8 @@ from heightfield_tiles import Areas, HeightfieldCreator
 from natures import WaterSurface, Rock, Shrubbery, Grass, Fir, Pine
 
 
-class Images(Enum):
-
-    WATER = 'water.png'
-    NOISE = 'noise2.png'
-    # SMALL_STONES = 'small_stones.jpg'
-    SMALL_STONES = 'riverbed.jpg'
-    BROWNISH_GRASS = 'grass01.jpg'
-    GREEN_GRASS = 'grass.png'
-    DARK_GRASS = 'grass2.jpg'
-
-    @property
-    def path(self):
-        return f'textures/{self.value}'
-
-
 class TerrainImages(Enum):
 
-    SMALL_STONES = ('small_stones.jpg', 30)
-    # RIVERBED = ('layingrock.jpg', 100)
-    BROWNISH_GRASS = ('grass0.jpg', 10)
-    GREEN_GRASS = ('grass.png', 10)
-    DARK_GRASS = ('grass2.jpg', 10)
-
     def __init__(self, file, tex_scale):
         super().__init__()
         self.file = file
@@ -49,22 +28,20 @@ class TerrainImages(Enum):
         return f'textures/{self.file}'
 
 
-class TerrainImages2(Enum):
+class Green(TerrainImages):
 
-    SMALL_STONES = ('sand1.jpg', 30)
-    # RIVERBED = ('layingrock.jpg', 100)
-    BROWNISH_GRASS = ('dark_green.jpg', 10)
-    GREEN_GRASS = ('grass.png', 10)
-    DARK_GRASS = ('grass2.jpg', 10)
+    TEX0 = ('stones_01.jpg', 30)
+    TEX1 = ('grass_01.jpg', 10)
+    TEX2 = ('grass_02.png', 10)
+    TEX3 = ('grass_03.jpg', 10)
 
-    def __init__(self, file, tex_scale):
-        super().__init__()
-        self.file = file
-        self.tex_scale = tex_scale
 
-    @property
-    def path(self):
-        return f'textures/{self.file}'
+class Sand(TerrainImages):
+
+    TEX0 = ('sand_01.jpg', 30)
+    TEX1 = ('rock_02.jpg', 30)
+    TEX2 = ('grass_02.png', 10)
+    TEX3 = ('grass_04.jpg', 10)
 
 
 class Natures(NodePath):
@@ -105,7 +82,6 @@ class BulletTerrain(NodePath):
         self.node().set_mass(0)
         self.set_collide_mask(BitMask32.bit(1))
         self.add_terrain_shape()
-        # self.node().set_kinematic(True)
 
     def add_terrain_shape(self):
         img = PNMImage(Filename(self.tile.file))
@@ -122,7 +98,6 @@ class BulletTerrain(NodePath):
         self.add_terrain_shape()
         self.terrain.set_heightfield(self.tile.file)
         self.terrain.generate()
-        # self.terrain.update()
 
     def make_geomip_terrain(self, texture_set):
         name = pathlib.Path(self.tile.file).stem
@@ -156,9 +131,6 @@ class BulletTerrain(NodePath):
             self.root.set_shader_input(f'tex_ScaleFactor{i}', tex_scale)
             self.root.set_texture(ts, tex)
 
-    # def get_terrain_elevaton(self, pt):
-    #     return self.terrain.get_elevation(*pt) * self.root.get_sz()
-
 
 class Terrains(NodePath):
 
@@ -177,7 +149,8 @@ class Terrains(NodePath):
 
         self.bullet_terrains = []
         self.heightfield_tiles = HeightfieldCreator()
-        self.initialize(TerrainImages)
+        # self.initialize(TerrainImages)
+        self.initialize(Green)
 
         self.natures_q = deque()
 
@@ -188,17 +161,13 @@ class Terrains(NodePath):
 
     def replace_terrain(self, texture_set=None):
         self.heightfield_tiles.concat_from_files()
-        texture_set = [(tex, scale) for tex, scale in self.load_texture_set(TerrainImages2)]
+        # texture_set = [(tex, scale) for tex, scale in self.load_texture_set(TerrainImages2)]
 
         for bullet_terrain in self.bullet_terrains:
             bullet_terrain.replace_heightfield()
 
-            # bullet_terrain.terrain.update()
-
             if texture_set is not None:
                 bullet_terrain.texture_to_terrain(texture_set)
-
-        # base.taskMgr.do_method_later(0.2, self.setup_nature, 'setup_nature')
 
     def initialize(self, texture_set):
         self.heightfield_tiles.concat_from_files()
@@ -260,8 +229,3 @@ class Terrains(NodePath):
                         self.natures.add_to_terrain(Fir(n, pos), True)
                     case Areas.ALPINE:
                         self.natures.add_to_terrain(Grass(n, pos))
-
-    # def get_terrain_elevaton(self, pt, name):
-    #     num = int(name.split('_')[-1])
-    #     terrain = self.bullet_terrains[num]
-    #     z = terrain.get_terrain_elevaton(pt)
