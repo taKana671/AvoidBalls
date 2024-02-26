@@ -70,6 +70,37 @@ class Tile:
         cy += self.center.y
         return cx, cy
 
+    def binarize_image(self):
+        img_gray = cv2.cvtColor(cv2.imread(self.file), cv2.COLOR_BGR2GRAY)
+        _, img = cv2.threshold(img_gray, 128, 255, cv2.THRESH_OTSU)
+        cv2.imwrite(f'test_{self.quadrant}.png', img)
+        total = img.size
+        white = cv2.countNonZero(img)
+        black = (total - white)
+        print('white: ', white / total, ' black: ', black / total)
+
+
+        # call this method in Terrains.initialize or Terrains.replace_terrain
+        # to decide texture set.
+     
+        # terrains\14404_6459
+        # :pnmimage:png(warning): iCCP: known incorrect sRGB profile
+        # white:  0.5107117443110418  black:  0.4892882556889582
+        # white:  0.4773879998183167  black:  0.5226120001816833
+        # white:  0.45778134415358296  black:  0.542218655846417
+        # white:  0.35019455252918286  black:  0.6498054474708171
+
+        # (py311env) C:\Users\Kanae\Desktop\py311env\TerrainDriving>python avoid_balls.py
+        # Known pipe types:
+        #   wglGraphicsPipe
+        # (all display modules loaded.)
+        # terrains\14571_6276
+        # :pnmimage:png(warning): iCCP: known incorrect sRGB profile
+        # white:  0.18336386622053324  black:  0.8166361337794668
+        # white:  0.20731578070826204  black:  0.7926842192917379
+        # white:  0.1384275310754137  black:  0.8615724689245863
+        # white:  0.14751169586216295  black:  0.852488304137837
+
 
 class HeightfieldCreator:
 

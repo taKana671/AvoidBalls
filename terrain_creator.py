@@ -174,6 +174,7 @@ class Terrains(NodePath):
         texture_set = [(tex, scale) for tex, scale in self.load_texture_set(texture_set)]
 
         for i, tile in enumerate(self.heightfield_tiles):
+            tile.binarize_image()
             bullet_terrain = BulletTerrain(tile, self.height, i)
             bullet_terrain.make_geomip_terrain(texture_set)
             bullet_terrain.reparent_to(self.terrains)
