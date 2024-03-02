@@ -51,7 +51,7 @@ class AvoidBalls(ShowBase):
 
         self.walker = Walker(self.world)
         self.walker.set_pos(pos + Vec3(0, 0, 1.5))
-        self.walker.reparent_to(base.render)
+        self.walker.reparent_to(self.render)
 
         self.floater = NodePath('floater')
         self.floater.set_z(3.0)

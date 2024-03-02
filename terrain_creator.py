@@ -12,7 +12,7 @@ from panda3d.core import Shader
 from panda3d.core import TextureStage, TransformState
 from panda3d.core import GeoMipTerrain
 
-from heightfield_tiles import Areas, HeightfieldCreator
+from heightmap import Areas, HeightMap
 from natures import WaterSurface, Rock, Shrubbery, Grass, Fir, Pine
 
 
@@ -50,24 +50,17 @@ class Natures(NodePath):
         super().__init__(PandaNode(name))
         self.world = world
 
-        self.bullet_nature = NodePath('bullet_nature')
-        self.bullet_nature.reparent_to(self)
-        self.nature = NodePath('nature')
-        self.nature.reparent_to(self)
+    def add_to_terrain(self, nature):
+        nature.reparent_to(self)
 
-    def add_to_terrain(self, nature, bullet=False):
-        if bullet:
-            nature.reparent_to(self.bullet_nature)
-            self.world.attach(nature.node())
-        else:
-            nature.reparent_to(self.nature)
+        if isinstance(nd := nature.node(), BulletRigidBodyNode):
+            self.world.attach(nd)
 
     def remove_from_terrain(self):
-        for np in self.bullet_nature.get_children():
-            self.world.remove(np.node())
-            np.remove_node()
+        for np in self.get_children():
+            if isinstance(nd := np.node(), BulletRigidBodyNode):
+                self.world.remove(nd)
 
-        for np in self.nature.get_children():
             np.remove_node()
 
 
@@ -142,14 +135,13 @@ class Terrains(NodePath):
         self.terrains = NodePath('terrains')
         self.terrains.reparent_to(self)
 
-        self.natures = Natures('natures_root', self.world)
+        self.natures = Natures('natures', self.world)
         self.natures.reparent_to(self)
 
         self.test_shape = BulletSphereShape(4)
 
         self.bullet_terrains = []
-        self.heightfield_tiles = HeightfieldCreator()
-        # self.initialize(TerrainImages)
+        self.heightmap = HeightMap()
         self.initialize(Green)
 
         self.natures_q = deque()
@@ -160,7 +152,7 @@ class Terrains(NodePath):
             yield tex, item.tex_scale
 
     def replace_terrain(self, texture_set=None):
-        self.heightfield_tiles.concat_from_files()
+        self.heightmap.create()
         # texture_set = [(tex, scale) for tex, scale in self.load_texture_set(TerrainImages2)]
 
         for bullet_terrain in self.bullet_terrains:
@@ -170,12 +162,11 @@ class Terrains(NodePath):
                 bullet_terrain.texture_to_terrain(texture_set)
 
     def initialize(self, texture_set):
-        self.heightfield_tiles.concat_from_files()
+        self.heightmap.create()
         texture_set = [(tex, scale) for tex, scale in self.load_texture_set(texture_set)]
 
-        for i, tile in enumerate(self.heightfield_tiles):
-            tile.binarize_image()
-            bullet_terrain = BulletTerrain(tile, self.height, i)
+        for tile in self.heightmap.tiles:
+            bullet_terrain = BulletTerrain(tile, self.height, tile.quadrant)
             bullet_terrain.make_geomip_terrain(texture_set)
             bullet_terrain.reparent_to(self.terrains)
             self.world.attach(bullet_terrain.node())
@@ -221,12 +212,12 @@ class Terrains(NodePath):
 
                 match area:
                     case Areas.LOWLAND:
-                        self.natures.add_to_terrain(Rock(n, pos), True)
+                        self.natures.add_to_terrain(Rock(n, pos))
                     case Areas.PLAIN:
                         self.natures.add_to_terrain(Shrubbery(n, pos))
                     case Areas.MOUNTAIN:
-                        self.natures.add_to_terrain(Pine(n, pos), True)
+                        self.natures.add_to_terrain(Pine(n, pos))
                     case Areas.SUBALPINE:
-                        self.natures.add_to_terrain(Fir(n, pos), True)
+                        self.natures.add_to_terrain(Fir(n, pos))
                     case Areas.ALPINE:
                         self.natures.add_to_terrain(Grass(n, pos))
