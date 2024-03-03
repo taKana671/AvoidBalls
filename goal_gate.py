@@ -155,16 +155,12 @@ class Sensor(NodePath):
             walker_pos = NodePath(nd).get_pos()
             if not self.in_pt:
                 self.in_pt = walker_pos
-                print('walker is near goal line:', self.in_pt)
 
             self.out_pt = walker_pos
             return task.cont
 
         if self.in_pt:
-            print('walker is away from goal line:', self.out_pt)
             if self.judge_go_through():
-                print('go throuth!!!!!!!!')
-                base.messenger.send('finish')
                 self.finish_line = True
                 return task.done
 

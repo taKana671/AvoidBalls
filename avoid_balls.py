@@ -32,6 +32,7 @@ class Status(Enum):
     PLAY = auto()
     READY = auto()
     SETUP = auto()
+    MAKE = auto()
 
 
 class AvoidBalls(ShowBase):
@@ -47,10 +48,8 @@ class AvoidBalls(ShowBase):
 
         self.scene = Scene(self.world)
         self.scene.reparent_to(self.render)
-        pos = self.scene.terrains.check_position(0, 0, sweep=False)
 
         self.walker = Walker(self.world)
-        self.walker.set_pos(pos + Vec3(0, 0, 1.5))
         self.walker.reparent_to(self.render)
 
         self.floater = NodePath('floater')
@@ -141,6 +140,16 @@ class AvoidBalls(ShowBase):
 
         self.walker.update(dt, motions)
 
+    def find_walker_start_pos(self):
+        for hit in self.world.rayTestAll(
+                Point3(0, 0, 30), Point3(0, 0, -30), mask=BitMask32.bit(1)).get_hits():
+
+            if hit.get_node() == self.walker.node():
+                continue
+
+            pos = hit.get_hit_pos()
+            return pos + Vec3(0, 0, 1.5)
+
     def update(self, task):
         dt = globalClock.get_dt()
         self.control_walker(dt)
@@ -163,18 +172,19 @@ class AvoidBalls(ShowBase):
                     self.state = Status.PLAY
 
             case Status.SETUP:
-                if self.scene.update():
-                    if self.scene.terrain_center:
-                        pos = self.scene.terrain_center + Vec3(0, 0, 1.5)
-                        self.walker.set_pos(pos)
-                        self.scene.terrain_center = None
+                pos = self.find_walker_start_pos()
+                self.walker.set_pos(pos)
+                self.scene.setup_scene()
+                self.screen.hide_screen()
+                self.state = Status.READY
 
-                    self.screen.hide_screen()
-                    self.state = Status.READY
+            case Status.MAKE:
+                if self.scene.update():
+                    self.state = Status.SETUP
 
             case _:
                 if self.screen.is_appear:
-                    self.state = Status.SETUP
+                    self.state = Status.MAKE
 
         self.world.do_physics(dt)
         return task.cont
@@ -188,7 +198,8 @@ class Screen(NodePath):
         super().__init__(cm.generate())
         self.set_transparency(TransparencyAttrib.MAlpha)
 
-        self.bg = LColor(.95, .95, .95, 1.0)
+        # self.bg = LColor(.95, .95, .95, 1.0)
+        self.bg = LColor(1.0, 1.0, 1.0, 1.0)
         self.fg = LColor(.4, .4, .4, 1.0)
         self.is_appear = False
 

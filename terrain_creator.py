@@ -139,11 +139,8 @@ class Terrains(NodePath):
         self.natures.reparent_to(self)
 
         self.test_shape = BulletSphereShape(4)
-
-        self.bullet_terrains = []
         self.heightmap = HeightMap()
-        self.initialize(Green)
-
+        self.bullet_terrains = []
         self.natures_q = deque()
 
     def load_texture_set(self, texture_set):
@@ -161,7 +158,7 @@ class Terrains(NodePath):
             if texture_set is not None:
                 bullet_terrain.texture_to_terrain(texture_set)
 
-    def initialize(self, texture_set):
+    def initialize(self, texture_set=Green):
         self.heightmap.create()
         texture_set = [(tex, scale) for tex, scale in self.load_texture_set(texture_set)]
 

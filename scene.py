@@ -11,10 +11,9 @@ from terrain_creator import Terrains
 
 class Status(Enum):
 
-    COMPLETE = auto()
     CLEANUP = auto()
-    SETUP = auto()
     CHANGE = auto()
+    FINISH = auto()
 
 
 class Sky(NodePath):
@@ -35,7 +34,6 @@ class Scene(NodePath):
         super().__init__(PandaNode('scene'))
         self.world = world
         self.state = None
-        self.terrain_center = None
 
         self.ambient_light = BasicAmbientLight()
         self.ambient_light.reparent_to(self)
@@ -68,15 +66,15 @@ class Scene(NodePath):
             [Point2(230, -230), -135],
             [Point2(-230, 230), 45],
         ]
+
         pt, angle = random.choice(candidates)
         pos = self.terrains.check_position(*pt, sweep=False)
         return pos, angle
 
     def update(self):
-
         match self.state:
 
-            case Status.COMPLETE:
+            case Status.FINISH:
                 self.state = Status.CLEANUP
 
             case Status.CLEANUP:
@@ -85,13 +83,10 @@ class Scene(NodePath):
 
             case Status.CHANGE:
                 self.terrains.replace_terrain()
-                self.terrain_center = self.terrains.check_position(0, 0, sweep=False)
-                self.state = Status.SETUP
-
-            case Status.SETUP:
-                self.setup_scene()
-                self.state = Status.COMPLETE
+                self.state = Status.FINISH
                 return True
 
             case _:
-                self.state = Status.SETUP
+                self.terrains.initialize()
+                self.state = Status.FINISH
+                return True
