@@ -1,7 +1,6 @@
 import pathlib
 import random
 from enum import Enum
-from collections import deque
 
 from panda3d.bullet import BulletRigidBodyNode
 from panda3d.bullet import BulletSphereShape, BulletHeightfieldShape, ZUp
@@ -96,7 +95,7 @@ class BulletTerrain(NodePath):
         name = pathlib.Path(self.tile.file).stem
         self.terrain = GeoMipTerrain(f'terrain_{name}')
         self.terrain.set_heightfield(self.tile.file)
-        self.terrain.setBruteforce(True)
+        # self.terrain.setBruteforce(True)
         self.terrain.set_border_stitching(True)
         # terrain.clear_color_map()
         # block_size 8 and min 2, or block_size 16 and min 3 is good.
@@ -113,15 +112,16 @@ class BulletTerrain(NodePath):
 
         shader = Shader.load(Shader.SL_GLSL, 'shaders/terrain_v.glsl', 'shaders/terrain_f.glsl')
         self.root.set_shader(shader)
-
         self.texture_to_terrain(texture_set)
 
-    def texture_to_terrain(self, texture_set):
+    def texture_to_terrain(self, tex_imgs):
         self.root.clear_texture()
-        for i, (tex, tex_scale) in enumerate(texture_set):
+
+        for i, img in enumerate(tex_imgs):
             ts = TextureStage(f'ts{i}')
             ts.set_sort(i)
-            self.root.set_shader_input(f'tex_ScaleFactor{i}', tex_scale)
+            self.root.set_shader_input(f'tex_ScaleFactor{i}', img.tex_scale)
+            tex = base.loader.load_texture(img.path)
             self.root.set_texture(ts, tex)
 
 
@@ -141,30 +141,30 @@ class Terrains(NodePath):
         self.test_shape = BulletSphereShape(4)
         self.heightmap = HeightMap()
         self.bullet_terrains = []
-        self.natures_q = deque()
 
-    def load_texture_set(self, texture_set):
-        for item in texture_set:
-            tex = base.loader.load_texture(item.path)
-            yield tex, item.tex_scale
+    def create_heightmap(self):
+        self.heightmap.create()
+        ratio = self.heightmap.binarize()
+
+        match ratio:
+            case _, black if black >= 0.7:
+                return Sand
+            case _, black if black >= 0.5:
+                return Green
 
     def replace_terrain(self, texture_set=None):
-        self.heightmap.create()
-        # texture_set = [(tex, scale) for tex, scale in self.load_texture_set(TerrainImages2)]
+        tex_imgs = self.create_heightmap()
 
         for bullet_terrain in self.bullet_terrains:
             bullet_terrain.replace_heightfield()
-
-            if texture_set is not None:
-                bullet_terrain.texture_to_terrain(texture_set)
+            bullet_terrain.texture_to_terrain(tex_imgs)
 
     def initialize(self, texture_set=Green):
-        self.heightmap.create()
-        texture_set = [(tex, scale) for tex, scale in self.load_texture_set(texture_set)]
+        tex_imgs = self.create_heightmap()
 
         for tile in self.heightmap.tiles:
             bullet_terrain = BulletTerrain(tile, self.height, tile.quadrant)
-            bullet_terrain.make_geomip_terrain(texture_set)
+            bullet_terrain.make_geomip_terrain(tex_imgs)
             bullet_terrain.reparent_to(self.terrains)
             self.world.attach(bullet_terrain.node())
             self.bullet_terrains.append(bullet_terrain)
@@ -179,24 +179,6 @@ class Terrains(NodePath):
                 self.natures.add_to_terrain(WaterSurface(pos))
 
             self.add_nature(terrain.tile)
-
-    def check_position(self, x, y, sweep=True):
-        pt_from = Point3(x, y, 30)
-        pt_to = Point3(x, y, -30)
-
-        if sweep:
-            ts_from = TransformState.make_pos(pt_from)
-            ts_to = TransformState.make_pos(pt_to)
-
-            if self.world.sweep_test_closest(
-                    self.test_shape, ts_from, ts_to, BitMask32.bit(2) | BitMask32.bit(5), 0.0).has_hit():
-                return None
-
-        if (result := self.world.ray_test_closest(
-                pt_from, pt_to, mask=BitMask32.bit(1))).has_hit():
-            return result.get_hit_pos()
-
-        return None
 
     def add_nature(self, tile):
         n = tile.quadrant
@@ -218,3 +200,21 @@ class Terrains(NodePath):
                         self.natures.add_to_terrain(Fir(n, pos))
                     case Areas.ALPINE:
                         self.natures.add_to_terrain(Grass(n, pos))
+
+    def check_position(self, x, y, sweep=True):
+        pt_from = Point3(x, y, 30)
+        pt_to = Point3(x, y, -30)
+
+        if sweep:
+            ts_from = TransformState.make_pos(pt_from)
+            ts_to = TransformState.make_pos(pt_to)
+
+            if self.world.sweep_test_closest(
+                    self.test_shape, ts_from, ts_to, BitMask32.bit(2) | BitMask32.bit(5), 0.0).has_hit():
+                return None
+
+        if (result := self.world.ray_test_closest(
+                pt_from, pt_to, mask=BitMask32.bit(1))).has_hit():
+            return result.get_hit_pos()
+
+        return None

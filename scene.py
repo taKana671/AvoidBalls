@@ -68,6 +68,7 @@ class Scene(NodePath):
         ]
 
         pt, angle = random.choice(candidates)
+        # pt, angle = Point2(5, 5), 45
         pos = self.terrains.check_position(*pt, sweep=False)
         return pos, angle
 

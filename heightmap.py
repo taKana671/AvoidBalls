@@ -116,9 +116,12 @@ class HeightMap:
         img_gray = cv2.cvtColor(cv2.imread(self.heightmap), cv2.COLOR_BGR2GRAY)
         _, img = cv2.threshold(img_gray, 0, 255, cv2.THRESH_OTSU)
         total = img.size
-        white = cv2.countNonZero(img) / total
-        black = (total - white) / total
-        return white, black
+        white = cv2.countNonZero(img)
+        black = (total - white)
+
+        white_ratio = white / total
+        black_ratio = black / total
+        return white_ratio, black_ratio
 
     def create(self):
         dir = next(self.dirs)
