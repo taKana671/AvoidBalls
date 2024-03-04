@@ -29,10 +29,10 @@ class TerrainImages(Enum):
 
 class Green(TerrainImages):
 
-    TEX0 = ('stones_01.jpg', 30)
-    TEX1 = ('grass_01.jpg', 10)
-    TEX2 = ('grass_02.png', 10)
-    TEX3 = ('grass_03.jpg', 10)
+    TEX0 = ('grass_01.jpg', 30)
+    TEX1 = ('grass_02.png', 10)
+    TEX2 = ('grass_03.jpg', 10)
+    TEX3 = ('grass_04.jpg', 10)
 
 
 class Sand(TerrainImages):
@@ -40,7 +40,23 @@ class Sand(TerrainImages):
     TEX0 = ('sand_01.jpg', 30)
     TEX1 = ('rock_02.jpg', 30)
     TEX2 = ('grass_02.png', 10)
-    TEX3 = ('grass_04.jpg', 10)
+    TEX3 = ('grass_03.jpg', 10)
+
+
+class Stones(TerrainImages):
+
+    TEX0 = ('stones_01.jpg', 40)
+    TEX1 = ('rock_01.jpg', 20)
+    TEX2 = ('grass_02.png', 10)
+    TEX3 = ('grass_03.jpg', 10)
+
+
+class LightGreen(TerrainImages):
+
+    TEX0 = ('stones_01.jpg', 40)
+    TEX1 = ('grass_01.jpg', 10)
+    TEX2 = ('grass_02.png', 10)
+    TEX3 = ('grass_05.jpg', 10)
 
 
 class Natures(NodePath):
@@ -147,9 +163,13 @@ class Terrains(NodePath):
         ratio = self.heightmap.binarize()
 
         match ratio:
-            case _, black if black >= 0.7:
+            case _, black if black >= 0.8:
                 return Sand
+            case _, black if black >= 0.6:
+                return Stones
             case _, black if black >= 0.5:
+                return LightGreen
+            case _:
                 return Green
 
     def replace_terrain(self, texture_set=None):
