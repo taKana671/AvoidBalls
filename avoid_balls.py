@@ -21,7 +21,7 @@ from utils import DrawText
 load_prc_file_data("", """
     textures-power-2 none
     gl-coordinate-system default
-    window-title Panda3D Walking In BulletWorld
+    window-title Panda3D Avoid Balls
     filled-wireframe-apply-shader true
     stm-max-views 8
     stm-max-chunk-count 2048""")
