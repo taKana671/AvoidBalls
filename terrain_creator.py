@@ -5,7 +5,7 @@ from enum import Enum
 from panda3d.bullet import BulletRigidBodyNode
 from panda3d.bullet import BulletSphereShape, BulletHeightfieldShape, ZUp
 from panda3d.core import NodePath, PandaNode
-from panda3d.core import Vec3, Point3, BitMask32, Vec2
+from panda3d.core import Vec3, Point3, BitMask32, Vec2, Vec4
 from panda3d.core import Filename, PNMImage
 from panda3d.core import Shader
 from panda3d.core import TextureStage, TransformState
@@ -111,7 +111,6 @@ class BulletTerrain(NodePath):
         name = pathlib.Path(self.tile.file).stem
         self.terrain = GeoMipTerrain(f'terrain_{name}')
         self.terrain.set_heightfield(self.tile.file)
-        # self.terrain.setBruteforce(True)
         self.terrain.set_border_stitching(True)
         # terrain.clear_color_map()
         # block_size 8 and min 2, or block_size 16 and min 3 is good.
@@ -191,7 +190,6 @@ class Terrains(NodePath):
 
     def setup_nature(self):
         for i, terrain in enumerate(self.bullet_terrains):
-            terrain.done_nature_setup = False
             if terrain.tile.count_pixels(0, 100) >= 1000:
                 xy = terrain.tile.center - Vec2(terrain.tile.size / 2)
                 z = terrain.root.get_z() + 2
