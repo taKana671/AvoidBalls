@@ -1,7 +1,7 @@
 import array
 import math
 
-from panda3d.core import Vec3, Point3
+from panda3d.core import Vec3
 from panda3d.core import NodePath
 from panda3d.core import Geom, GeomNode, GeomTriangles
 from panda3d.core import GeomVertexFormat, GeomVertexData, GeomVertexArrayFormat

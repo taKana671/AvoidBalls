@@ -6,11 +6,11 @@ from enum import Enum
 import numpy as np
 from direct.interval.IntervalGlobal import ProjectileInterval, Parallel, Sequence, Func
 from panda3d.core import NodePath, TransformState
-from panda3d.core import BitMask32, LColor, Point3, Vec3, Point2
+from panda3d.core import LColor, Point3, Vec3, Point2
 from panda3d.bullet import BulletRigidBodyNode, BulletSphereShape
 
+from constants import Config, Mask
 from geomnode_maker import Sphere
-from walker import Motions
 
 
 class Colors(Enum):
@@ -60,7 +60,7 @@ class Ball(NodePath):
         self.set_color(color)
         self.set_pos(start_pt)
 
-        self.set_collide_mask(BitMask32.bit(3))
+        self.set_collide_mask(Mask.ball)
         self.node().set_kinematic(True)
 
         end, tip = self.ball.get_tight_bounds()
@@ -128,20 +128,20 @@ class BallController:
         z = 30
 
         if (result := self.world.ray_test_closest(
-                Point3(pt2, 30), Point3(pt2, -30), mask=BitMask32.bit(1))).has_hit():
+                Point3(pt2, 30), Point3(pt2, -30), mask=Mask.terrain)).has_hit():
             z = result.get_hit_pos().z + 35
 
         return Point3(pt2, z)
 
     def get_dest_pos(self, pos):
-        """Returns the ball's destination poin.  
+        """Returns the ball's destination point.
             Args:
                 pos (Point3): point where Ralph contacts with the terrain now.
         """
-        match self.walker.motion:
-            case Motions.FORWARD:
+        match self.walker.moving_direction:
+            case Config.forward:
                 distance = random.uniform(0.7, 0.8) * -10
-            case Motions.BACKWARD:
+            case Config.backward:
                 distance = random.uniform(0.7, 0.8) * 6
             case _:
                 distance = random.uniform(-0.03, 0.03)
@@ -183,10 +183,9 @@ class BallController:
         ts_from = TransformState.make_pos(pt_from)
         ts_to = TransformState.make_pos(pt_to)
         test_shape = BulletSphereShape(0.5)
-        result = self.world.sweep_test_closest(
-            test_shape, ts_from, ts_to, BitMask32.bit(1) | BitMask32.bit(2), 0.0)
 
-        if result.has_hit():
+        if (result := self.world.sweep_test_closest(
+                test_shape, ts_from, ts_to, Mask.environment, 0.0)).has_hit():
             if result.get_node() == self.walker.node():
                 self.score_display.add(hit=1)
             else:

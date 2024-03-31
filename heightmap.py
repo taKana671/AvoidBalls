@@ -7,11 +7,9 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import cv2
-
 from panda3d.core import Point2
 
-
-TERRAIN_DIR = 'terrains'
+from constants import FolderPath
 
 
 class Areas(IntEnum):
@@ -33,7 +31,7 @@ class Files(StrEnum):
 
     @property
     def path(self):
-        return f'{TERRAIN_DIR}/{self.value}.png'
+        return f'{FolderPath.terrains}/{self.value}.png'
 
     @classmethod
     def get_tile_names(cls):
@@ -86,7 +84,7 @@ class HeightMap:
         self.tile_size = 256
         self.tiles = [tile for tile in self.get_tiles()]
 
-        dirs = [p for p in Path(TERRAIN_DIR).glob('**') if re.search(r'\d+_\d+', str(p))]
+        dirs = [p for p in Path(FolderPath.terrains).glob('**') if re.search(r'\d+_\d+', str(p))]
         random.shuffle(dirs)
         self.dirs = cycle(dirs)
 

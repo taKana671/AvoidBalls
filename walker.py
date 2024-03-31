@@ -5,7 +5,9 @@ from panda3d.bullet import BulletCapsuleShape, ZUp
 from panda3d.bullet import BulletSphereShape
 from panda3d.bullet import BulletRigidBodyNode
 from panda3d.core import PandaNode, NodePath, TransformState
-from panda3d.core import Vec3, BitMask32
+from panda3d.core import Vec3
+
+from constants import Config, Mask
 
 
 class Motions(Enum):
@@ -26,6 +28,7 @@ class Walker(NodePath):
         super().__init__(BulletRigidBodyNode('wolker'))
         self.world = world
         self.test_shape = BulletSphereShape(0.5)
+        self.moving_direction = 0
 
         h, w = 6, 1.2
         shape = BulletCapsuleShape(w, h - 2 * w, ZUp)
@@ -34,9 +37,8 @@ class Walker(NodePath):
         self.node().set_ccd_motion_threshold(1e-7)
         self.node().set_ccd_swept_sphere_radius(0.5)
 
-        self.set_collide_mask(BitMask32.bit(1) | BitMask32.bit(4))
+        self.set_collide_mask(Mask.terrain | Mask.sensor)
         self.set_scale(0.5)
-        # self.reparent_to(base.render)
         self.world.attach(self.node())
 
         self.direction_nd = NodePath(PandaNode('direction'))
@@ -48,7 +50,7 @@ class Walker(NodePath):
             {self.RUN: 'models/ralph/ralph-run.egg',
              self.WALK: 'models/ralph/ralph-walk.egg'}
         )
-        self.actor.set_transform(TransformState.make_pos(Vec3(0, 0, -2.5)))  # -3
+        self.actor.set_transform(TransformState.make_pos(Vec3(0, 0, -2.5)))
         self.actor.set_name('ralph')
         self.actor.reparent_to(self.direction_nd)
 
@@ -64,7 +66,7 @@ class Walker(NodePath):
 
         below = pos - Vec3(0, 0, 30)
         if (hit := self.world.ray_test_closest(
-                pos, below, BitMask32.bit(1) | BitMask32.bit(2))).has_hit():
+                pos, below, Mask.environment)).has_hit():
             return hit.get_hit_pos()
 
         return None
@@ -75,55 +77,51 @@ class Walker(NodePath):
     def predict_collision(self, next_pos):
         ts_from = TransformState.make_pos(self.get_pos())
         ts_to = TransformState.make_pos(next_pos)
-        result = self.world.sweep_test_closest(self.test_shape, ts_from, ts_to, BitMask32.bit(2), 0.0)
+        result = self.world.sweep_test_closest(self.test_shape, ts_from, ts_to, Mask.nature, 0.0)
         return result.has_hit()
 
     def update(self, dt, motions):
         direction = 0
         angle = 0
-        self.motion = None
+        motion = None
 
         if Motions.LEFT in motions:
-            angle += 100 * dt
-            self.motion = Motions.TURN
+            angle += Config.angle * dt
+            motion = Motions.TURN
         if Motions.RIGHT in motions:
-            angle -= 100 * dt
-            self.motion = Motions.TURN
+            angle -= Config.angle * dt
+            motion = Motions.TURN
         if Motions.FORWARD in motions:
-            direction += -1
-            self.motion = Motions.FORWARD
+            direction += Config.forward
+            motion = Motions.FORWARD
         if Motions.BACKWARD in motions:
-            direction += 1
-            self.motion = Motions.BACKWARD
+            direction += Config.backward
+            motion = Motions.BACKWARD
 
-        if angle:
-            self.turn(angle)
-
-        distance = 0
-
-        if direction < 0:
-            distance = direction * 10 * dt
-        if direction > 0:
-            distance = direction * 5 * dt
-
-        if distance != 0:
-            self.move(distance)
-
-        self.play_anim()
+        self.turn(angle)
+        self.move(direction, dt)
+        self.play_anim(motion)
+        self.moving_direction = direction
 
     def turn(self, angle):
-        self.direction_nd.set_h(self.direction_nd.get_h() + angle)
+        if angle:
+            self.direction_nd.set_h(self.direction_nd.get_h() + angle)
 
-    def move(self, distance):
-        temp_pos = self.get_pos() + self.get_orientation() * distance
+    def move(self, direction, dt):
+        # Not move, if direction is 0.
+        if not direction:
+            return
 
-        if contact_pos := self.get_terrain_contact_pos(temp_pos):
+        speed = 10 if direction < 0 else 5
+        to_pos = self.get_pos() + self.get_orientation() * direction * speed * dt
+
+        if contact_pos := self.get_terrain_contact_pos(to_pos):
             next_pos = contact_pos + Vec3(0, 0, 1.5)
             if not self.predict_collision(next_pos):
                 self.set_pos(next_pos)
 
-    def play_anim(self):
-        match self.motion:
+    def play_anim(self, motion):
+        match motion:
             case Motions.FORWARD:
                 anim = Walker.RUN
                 rate = 1

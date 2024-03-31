@@ -5,12 +5,13 @@ from enum import Enum
 from panda3d.bullet import BulletRigidBodyNode
 from panda3d.bullet import BulletSphereShape, BulletHeightfieldShape, ZUp
 from panda3d.core import NodePath, PandaNode
-from panda3d.core import Vec3, Point3, BitMask32, Vec2, Vec4
+from panda3d.core import Vec3, Point3, Vec2
 from panda3d.core import Filename, PNMImage
 from panda3d.core import Shader
 from panda3d.core import TextureStage, TransformState
 from panda3d.core import GeoMipTerrain
 
+from constants import Mask
 from heightmap import Areas, HeightMap
 from natures import WaterSurface, Rock, Shrubbery, Grass, Fir, Pine
 
@@ -88,7 +89,7 @@ class BulletTerrain(NodePath):
 
         self.set_pos(Point3(self.tile.center, 0))
         self.node().set_mass(0)
-        self.set_collide_mask(BitMask32.bit(1))
+        self.set_collide_mask(Mask.terrain)
         self.add_terrain_shape()
 
     def add_terrain_shape(self):
@@ -226,13 +227,14 @@ class Terrains(NodePath):
         if sweep:
             ts_from = TransformState.make_pos(pt_from)
             ts_to = TransformState.make_pos(pt_to)
+            sweep_mask = Mask.nature | Mask.foundation
 
             if self.world.sweep_test_closest(
-                    self.test_shape, ts_from, ts_to, BitMask32.bit(2) | BitMask32.bit(5), 0.0).has_hit():
+                    self.test_shape, ts_from, ts_to, sweep_mask, 0.0).has_hit():
                 return None
 
         if (result := self.world.ray_test_closest(
-                pt_from, pt_to, mask=BitMask32.bit(1))).has_hit():
+                pt_from, pt_to, mask=Mask.terrain)).has_hit():
             return result.get_hit_pos()
 
         return None

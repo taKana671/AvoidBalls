@@ -1,18 +1,15 @@
 import random
 
 from panda3d.core import NodePath, PandaNode
-from panda3d.core import CardMaker, Texture, TextureStage
-from panda3d.core import Vec3, BitMask32, TransformState
+from panda3d.core import CardMaker, TextureStage
+from panda3d.core import Vec3, TransformState
 from panda3d.core import TransparencyAttrib
-from panda3d.core import Shader
 from panda3d.bullet import BulletRigidBodyNode
 from panda3d.bullet import BulletConvexHullShape, BulletCylinderShape, ZUp
 from direct.interval.LerpInterval import LerpTexOffsetInterval
 
 from geomnode_maker import Sphere
-
-
-MASK = BitMask32(1) | BitMask32.bit(2)
+from constants import Mask
 
 
 class WaterSurface(NodePath):
@@ -30,21 +27,11 @@ class WaterSurface(NodePath):
         surface.set_pos(pos)
 
         tex = base.loader.load_texture('textures/water.png')
-        # tex.setWrapU(Texture.WMClamp)
-        # tex.setWrapV(Texture.WMClamp)
         surface.set_texture(tex)
         surface.set_tex_scale(TextureStage.get_default(), 4)
 
-        # self.set_water_shader(surface)
         surface.reparent_to(self)
         LerpTexOffsetInterval(surface, 200, (1, 0), (0, 0)).loop()
-
-    # def set_water_shader(self, surface):
-    #     shader = Shader.load(Shader.SL_GLSL, 'shaders/water_v.glsl', 'shaders/water_f.glsl')
-    #     surface.set_shader(shader)
-    #     surface.set_shader_input('noise', base.loader.loadTexture('textures/noise2.png'))
-    #     props = base.win.get_properties()
-    #     surface.set_shader_input('u_resolution', props.get_size())
 
 
 class Trees(NodePath):
@@ -56,7 +43,7 @@ class Trees(NodePath):
         height = (tip - end).z
         shape = BulletCylinderShape(0.3, height, ZUp)
         self.node().add_shape(shape)
-        self.set_collide_mask(MASK)
+        self.set_collide_mask(Mask.environment)
 
         self.setup_tree(pos, scale)
 
@@ -115,7 +102,7 @@ class Rock(NodePath):
         shape = BulletConvexHullShape()
         shape.add_geom(model.node().get_geom(0))
         self.node().add_shape(shape)
-        self.set_collide_mask(MASK)
+        self.set_collide_mask(Mask.environment)
 
         self.setup_rock(pos)
 

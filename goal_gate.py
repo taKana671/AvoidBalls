@@ -5,8 +5,9 @@ from panda3d.bullet import BulletHelper
 from panda3d.core import NodePath, PandaNode
 from panda3d.core import GeomNode, GeomVertexFormat
 from panda3d.core import TransformState
-from panda3d.core import Point3, Vec3, BitMask32
+from panda3d.core import Point3, Vec3
 
+from constants import Mask
 from geomnode_maker import Cylinder
 
 
@@ -54,7 +55,7 @@ class GoalGate(NodePath):
         self.foundation = NodePath(BulletRigidBodyNode('foundation'))
         shape = BulletBoxShape(Vec3(3, 3, 0.25))
         self.foundation.node().add_shape(shape, TransformState.make_pos(Point3(0, 0, 0.25)))
-        self.foundation.set_collide_mask(BitMask32.bit(5))
+        self.foundation.set_collide_mask(Mask.foundation)
         self.foundation.reparent_to(self)
         self.world.attach(self.foundation.node())
 
@@ -94,7 +95,7 @@ class Cloth(NodePath):
         self.node().set_total_mass(50.0)
         self.node().get_shape(0).set_margin(0.5)
         self.set_name('banner')
-        self.set_collide_mask(BitMask32.all_on())
+        self.set_collide_mask(Mask.almighty)
 
         fmt = GeomVertexFormat.getV3n3t2()
         geom = BulletHelper.make_geom_from_faces(self.node(), fmt, True)
@@ -112,7 +113,7 @@ class Poles(NodePath):
 
     def __init__(self, left_pt, right_pt):
         super().__init__(BulletRigidBodyNode('poles'))
-        self.set_collide_mask(BitMask32.bit(1))
+        self.set_collide_mask(Mask.terrain)
         self.left = self.assemble(left_pt)
         self.right = self.assemble(right_pt)
 
@@ -132,7 +133,7 @@ class Sensor(NodePath):
         super().__init__(BulletGhostNode('sensor'))
         shape = BulletBoxShape(Vec3(3, 0.125, 0.125))
         self.node().add_shape(shape)
-        self.set_collide_mask(BitMask32.bit(4))
+        self.set_collide_mask(Mask.sensor)
 
     def setup_sensor(self, pole_l, pole_r):
         """Make variables for sensor.

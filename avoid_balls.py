@@ -7,11 +7,12 @@ from direct.showbase.ShowBaseGlobal import globalClock
 from direct.showbase.InputStateGlobal import inputState
 from panda3d.bullet import BulletWorld, BulletDebugNode
 from panda3d.core import NodePath, TextNode
-from panda3d.core import BitMask32, Point2, Point3, Quat, Vec3, LColor, CardMaker
+from panda3d.core import Point2, Point3, Quat, Vec3, LColor, CardMaker
 from panda3d.core import TransparencyAttrib
 from panda3d.core import load_prc_file_data
 from direct.interval.IntervalGlobal import Sequence, Func
 
+from constants import Mask
 from walker import Walker, Motions
 from scene import Scene
 from ball_controller import BallController
@@ -90,7 +91,7 @@ class AvoidBalls(ShowBase):
 
     def ray_cast(self, from_pos, to_pos):
         if (result := self.world.ray_test_closest(
-                from_pos, to_pos, BitMask32.bit(1) | BitMask32.bit(2))).has_hit():
+                from_pos, to_pos, Mask.environment)).has_hit():
             return result.get_node()
 
         return None
@@ -142,7 +143,7 @@ class AvoidBalls(ShowBase):
 
     def find_walker_start_pos(self):
         for hit in self.world.rayTestAll(
-                Point3(0, 0, 30), Point3(0, 0, -30), mask=BitMask32.bit(1)).get_hits():
+                Point3(0, 0, 30), Point3(0, 0, -30), mask=Mask.terrain).get_hits():
 
             if hit.get_node() == self.walker.node():
                 continue
